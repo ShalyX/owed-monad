@@ -47,6 +47,7 @@ try{
  undone=await snap();console.log("MONEY_UNDO="+JSON.stringify(undone));
  if(undone.task!=="open"||undone.money!=="open"||undone.transaction||Number(undone.done)!==0||Number(undone.open)!==2)throw Error("Reopened money item not correct");
  await sleep(350);
+ await js("document.querySelector('button[data-filter=settled]').click();true");
  // Test the real loading UX, but mock only the inference endpoint, not a live model.
  const response={id:"smoke-result",title:"Coffee message",source:"text",fingerprint:"smoke-fake-result",createdAt:new Date().toISOString(),obligations:[{id:"smoke-new",title:"Reply to the message",kind:"task",direction:"i_owe",status:"open",evidence:"Reply to me",amount:null}]};
  await js("window.fetch=(original=>((input,options)=>String(input)==='/api/analyze-text'?new Promise(resolve=>{window.__finishSmoke=()=>resolve(new Response("+JSON.stringify(JSON.stringify(response))+",{status:200,headers:{'content-type':'application/json'}}))}):original(input,options)))(window.fetch);document.querySelector('#conversation').value='Can you reply to me by Saturday?';document.querySelector('#analyzeText').click();true");
@@ -88,6 +89,25 @@ try{
  if(!reduced.reduced||reduced.avatar!=="none"||reduced.card!=="none")throw Error("Reduced-motion preference ignored");
  const shot=await call("Page.captureScreenshot",{format:"png",captureBeyondViewport:false});
  if(shot?.data){const p="/tmp/owed-motion-mobile.png";await writeFile(p,Buffer.from(shot.data,"base64"));console.log("MOBILE_SCREENSHOT="+p)}
+ // Receipt context is tested using a synthetic browser-only settled item.
+ // The read-only RPC is mocked as having no receipt, so it MUST NOT be labelled verified.
+ const archived={id:"receipt-group",title:"Coffee conversation with friends",source:"text",fingerprint:"browser-receipt-fixture",createdAt:new Date().toISOString(),
+   obligations:[{id:"synthetic-receipt",kind:"money",direction:"i_owe",title:"Coffee payback",amount:.01,evidence:"you owe me $0.01",status:"settled",txHash:"0x"+"c".repeat(64),payer:"0x"+"1".repeat(40),recipientAddress:"0x"+"2".repeat(40)}]};
+ await js("localStorage.setItem('owed-v1-inbox',"+JSON.stringify(JSON.stringify([archived]))+");location.reload();true");
+ let receiptVisible=false;
+ for(let i=0;i<30;i++){try{receiptVisible=await js("!!document.querySelector('button[data-action=receipt][data-id=synthetic-receipt]')");if(receiptVisible)break}catch{}await sleep(130)}
+ if(!receiptVisible)throw Error("Saved receipt action not rendered");
+ await js("window.fetch=(original=>async(input,options)=>String(input).startsWith('/api/receipt?')?new Response(JSON.stringify({chainId:'0x279f',receipt:null,blockTimestamp:null}),{status:200,headers:{'content-type':'application/json'}}):original(input,options))(window.fetch);true");
+ await js("document.querySelector('button[data-action=receipt][data-id=synthetic-receipt]').click();true");
+ let archiveProof;
+ for(let i=0;i<30;i++){
+   archiveProof=await js("({open:document.querySelector('#receiptDialog').open,context:document.querySelector('#receiptMomentLabel').textContent,icon:document.querySelector('#receiptMomentIcon').textContent,state:document.querySelector('#receiptState').textContent})");
+   if(archiveProof?.state==="Could not reverify")break;
+   await sleep(130);
+ }
+ console.log("ARCHIVED_RECEIPT_CONTEXT_UNVERIFIED="+JSON.stringify(archiveProof));
+ if(!archiveProof?.open||archiveProof.context!=="Coffee conversation with friends"||archiveProof.icon!=="☕"||archiveProof.state!=="Could not reverify")throw Error("Saved receipt lost context or falsely claimed onchain verification");
+ await js("document.querySelector('#receiptDialog').close();true");
  if(errors.length)throw Error("Browser exceptions: "+errors.join("; "));
  console.log("PASS_BROWSER_TASK_MONEY_UNDO_DISCOVERY_MOBILE_REDUCED_MOTION");
 }catch(e){failures++;console.log("BROWSER_QA_FAILURE="+e.message)}

@@ -61,7 +61,7 @@ async function analyzeText() {
 async function analyzeAudio(file, context = "incoming") {
   if (!file) return showNotice("Choose or record an audio note first.", true);
   if (file.size > 18 * 1024 * 1024) return showNotice("Keep the voice note under 18 MB.", true);
-  setProcessing(true, "Transcribing with Whisper and extracting obligations with Gemma…");
+  setProcessing(true, "Transcribing and extracting explicit obligations…");
   try {
     const form = new FormData();
     form.append("audio", file, file.name || "recording.webm");

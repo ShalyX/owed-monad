@@ -37,19 +37,20 @@ async function readBody(req, limit = MAX_TEXT) {
   return Buffer.concat(buffers).toString("utf8");
 }
 async function chat(text, perspective = "incoming") {
-  const token = hfToken();
-  if (!token) throw Object.assign(new Error("HF_TOKEN is not configured. Configure inference to analyze your own conversations."), { status: 503 });
-  const url = process.env.HF_CHAT_ENDPOINT || "https://router.huggingface.co/v1/chat/completions";
+  const local = process.env.LOCAL_INFERENCE_URL?.replace(/\/$/, "");
+  const token = local ? process.env.OWED_WORKER_TOKEN : hfToken();
+  if (!token) throw Object.assign(new Error(local ? "Private inference worker token is missing." : "HF_TOKEN is not configured. Configure inference to analyze your own conversations."), { status: 503 });
+  const url = local ? local + "/v1/chat/completions" : process.env.HF_CHAT_ENDPOINT || "https://router.huggingface.co/v1/chat/completions";
   const response = await fetch(url, {
     method: "POST",
     headers: { "authorization": "Bearer " + token, "content-type": "application/json" },
     body: JSON.stringify({
-      model: process.env.HF_GEMMA_MODEL || "google/gemma-3-12b-it",
+      model: local ? (process.env.OWED_TEXT_MODEL || "qwen2.5:0.5b") : (process.env.HF_GEMMA_MODEL || "google/gemma-3-12b-it"),
       messages: [{ role: "system", content: PROMPT }, { role: "user", content: (perspective === "recording" ? "The USER is speaking in this self-recorded reminder. First-person promises and debts are the USER's own.\n\n" : "This is an INCOMING message from someone else to the user. Second-person asks and debts are the USER's obligations.\n\n") + "Analyze only this conversation:\n\n" + text }],
       temperature: 0.1,
       max_tokens: 1400
     }),
-    signal: AbortSignal.timeout(45000)
+    signal: AbortSignal.timeout(local ? 185000 : 45000)
   });
   if (!response.ok) throw Object.assign(new Error(response.status === 402 ? "Hugging Face returned HTTP 402: inference credits or billing are required. Check your Hugging Face billing settings." : "Model provider failed (" + response.status + ")."), { status: response.status === 402 ? 402 : 502 });
   const data = await response.json();
@@ -61,14 +62,15 @@ async function chat(text, perspective = "incoming") {
   return cleanAnalysis(parsed, text);
 }
 async function audioToText(file) {
-  const token = hfToken();
-  if (!token) throw Object.assign(new Error("HF_TOKEN is not configured."), { status: 503 });
-  const endpoint = process.env.HF_WHISPER_ENDPOINT || "https://router.huggingface.co/hf-inference/models/" + (process.env.HF_WHISPER_MODEL || "openai/whisper-large-v3");
+  const local = process.env.LOCAL_INFERENCE_URL?.replace(/\/$/, "");
+  const token = local ? process.env.OWED_WORKER_TOKEN : hfToken();
+  if (!token) throw Object.assign(new Error(local ? "Private inference worker token is missing." : "HF_TOKEN is not configured."), { status: 503 });
+  const endpoint = local ? local + "/transcribe" : process.env.HF_WHISPER_ENDPOINT || "https://router.huggingface.co/hf-inference/models/" + (process.env.HF_WHISPER_MODEL || "openai/whisper-large-v3");
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { authorization: "Bearer " + token, "content-type": file.type || "application/octet-stream" },
     body: Buffer.from(await file.arrayBuffer()),
-    signal: AbortSignal.timeout(60000)
+    signal: AbortSignal.timeout(local ? 185000 : 60000)
   });
   if (!response.ok) throw Object.assign(new Error(response.status === 402 ? "Hugging Face returned HTTP 402 for Whisper: inference credits or billing are required." : "Transcription provider failed (" + response.status + ")."), { status: response.status === 402 ? 402 : 502 });
   const data = await response.json();
@@ -115,7 +117,7 @@ export function makeServer() {
   return createServer(async (req, res) => {
     const url = new URL(req.url || "/", "http://localhost");
     try {
-      if (req.method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, app: "Owed", inferenceConfigured: Boolean(hfToken()), network: "monad-testnet" });
+      if (req.method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, app: "Owed", inferenceConfigured: Boolean(process.env.LOCAL_INFERENCE_URL ? process.env.OWED_WORKER_TOKEN : hfToken()), inferenceProvider: process.env.LOCAL_INFERENCE_URL ? "private-vps" : "huggingface", network: "monad-testnet" });
       if (req.method === "GET" && url.pathname === "/api/config") return send(res, 200, { chainId: 10143, rpc: "https://testnet-rpc.monad.xyz", explorer: "https://testnet.monadvision.com", usdc: "0x534b2f3A21130d7a60830c2Df862319e593943A3", decimals: 6, livePayments: true, chain: "Monad Testnet" });
       if (req.method === "POST" && url.pathname === "/api/analyze-text") {
         if (!(req.headers["content-type"] || "").includes("application/json")) return send(res, 415, { error: "Expected JSON" });
@@ -134,5 +136,5 @@ export function makeServer() {
   });
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  makeServer().listen(PORT, "0.0.0.0", () => console.log("Owed listening on :" + PORT));
+  makeServer().listen(PORT, process.env.HOST || "127.0.0.1", () => console.log("Owed listening on :" + PORT));
 }

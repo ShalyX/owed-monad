@@ -7,7 +7,7 @@ await new Promise(resolve => app.listen(0, "127.0.0.1", resolve));
 const root = "http://127.0.0.1:" + app.address().port;
 const failures = [];
 try {
-  if (!process.env.HF_TOKEN) throw new Error("HF_TOKEN not configured in the local .env file.");
+  if (!(process.env.LOCAL_INFERENCE_URL && process.env.OWED_WORKER_TOKEN) && !process.env.HF_TOKEN) throw new Error("No inference provider configured.");
   const input = "Hey, you still owe me $2 for coffee. Please send the event link.";
   try {
     const r = await fetch(root + "/api/analyze-text", {

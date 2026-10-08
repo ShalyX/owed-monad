@@ -73,3 +73,17 @@ Owed was developed by adapting the broad Whisper/Gemma transcription approach fr
 6. Independently verify using `npm run verify:payment -- 0xTXHASH 0xPAYER 0xRECIPIENT 0.01`. The verifier checks Monad Testnet chain ID, the signed transaction's USDC destination and exact calldata, receipt status, and Transfer event fields before printing VERIFIED.
 
 **Current evidence:** Automated tests and the public-RPC token probe are passing. Real Whisper/Gemma inference and a funded USDC transfer are still pending local token configuration and wallet-funded signing. Never substitute synthetic responses or a mock receipt for this milestone.
+
+## Zero-cost VPS inference (private test lane)
+
+This project supports a paid Hugging Face mode for reference, but our current working lane uses **no paid inference**:
+- `faster-whisper` with the small `tiny.en` CPU model for audio.
+- Ollama `qwen2.5:0.5b` for structured obligation extraction. This is NOT Gemma; it requires careful human review.
+- `scripts/inference-worker.py` listens on `127.0.0.1:18765`, requires `OWED_WORKER_TOKEN` bearer authentication, and serializes work (one request at a time). The official model server listens on `127.0.0.1:11434`. Neither port is public.
+- `scripts/install-vps-worker.sh` provisions a dedicated unprivileged user and a memory/CPU-capped systemd worker; the token is generated and stored on the VPS at `/etc/owed-inference.env`, **never in GitHub**. The VPS Ollama service also has its own CPU/memory cap in `/etc/systemd/system/ollama.service.d/owed-limits.conf`.
+- Owed's Node server can be colocated on the VPS with `LOCAL_INFERENCE_URL=http://127.0.0.1:18765`, loading the auth token via `EnvironmentFile=/etc/owed-inference.env`. Use `HOST=127.0.0.1` and forward its web port through SSH when testing from your PC; do not expose the HTTP port to the internet without adding HTTPS and application auth.
+- To forward: `ssh -N -L 127.0.0.1:3001:127.0.0.1:3001 caraxes-vps`. Open `http://localhost:3001` on the PC. Wallet authorization still occurs in the user's own injected wallet.
+
+**Safety:** No AI-generated recipient address is trusted; source quotes are verified against the actual transcript. Money/transcription ambiguity requires review, and transfers always require explicit wallet confirmation and on-chain event verification. A 0.5B model is not production-grade reasoning; never auto-pay.
+
+**Troubleshooting:** `faster-whisper` 1.2.1 currently needs `av<19`; PyAV 19 dropped the `metadata_errors` argument its decoder uses. Audio weights are downloaded once for free from Hugging Face Hub (not billed inference). The VPS is resource-constrained; if model processing times out or would disturb running services, scale down or disable the worker rather than kill unrelated services.

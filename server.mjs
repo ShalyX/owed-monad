@@ -1,0 +1,132 @@
+import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import { extname, resolve, sep } from "node:path";
+import { Readable } from "node:stream";
+import { cleanAnalysis, parseModelOutput, PROMPT } from "./lib/obligations.mjs";
+
+const PORT = Number(process.env.PORT || 3000);
+const ROOT = resolve(process.cwd(), "public");
+const MAX_AUDIO = 18 * 1024 * 1024;
+const MAX_TEXT = 16000;
+const HEADERS = { "cache-control": "no-store", "x-content-type-options": "nosniff", "referrer-policy": "no-referrer", "x-frame-options": "DENY", "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'" };
+const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml" };
+
+function send(res, status, obj) {
+  const data = JSON.stringify(obj);
+  res.writeHead(status, { ...HEADERS, "content-type": "application/json; charset=utf-8" });
+  res.end(data);
+}
+async function readBody(req, limit = MAX_TEXT) {
+  const buffers = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > limit) throw Object.assign(new Error("Request exceeds size limit."), { status: 413 });
+    buffers.push(chunk);
+  }
+  return Buffer.concat(buffers).toString("utf8");
+}
+async function chat(text, perspective = "incoming") {
+  const token = process.env.HF_TOKEN;
+  if (!token) throw Object.assign(new Error("HF_TOKEN is not configured. Configure inference to analyze your own conversations."), { status: 503 });
+  const url = process.env.HF_CHAT_ENDPOINT || "https://router.huggingface.co/v1/chat/completions";
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "authorization": "Bearer " + token, "content-type": "application/json" },
+    body: JSON.stringify({
+      model: process.env.HF_GEMMA_MODEL || "google/gemma-3-12b-it",
+      messages: [{ role: "system", content: PROMPT }, { role: "user", content: (perspective === "recording" ? "The USER is speaking in this self-recorded reminder. First-person promises and debts are the USER's own.\n\n" : "This is an INCOMING message from someone else to the user. Second-person asks and debts are the USER's obligations.\n\n") + "Analyze only this conversation:\n\n" + text }],
+      temperature: 0.1,
+      max_tokens: 1400
+    }),
+    signal: AbortSignal.timeout(45000)
+  });
+  if (!response.ok) throw Object.assign(new Error("Model provider failed (" + response.status + ")."), { status: 502 });
+  const data = await response.json();
+  const answer = data?.choices?.[0]?.message?.content;
+  if (typeof answer !== "string") throw Object.assign(new Error("Model response was missing."), { status: 502 });
+  let parsed;
+  try { parsed = parseModelOutput(answer); }
+  catch { throw Object.assign(new Error("Model response was not valid JSON. Try again."), { status: 502 }); }
+  return cleanAnalysis(parsed, text);
+}
+async function audioToText(file) {
+  const token = process.env.HF_TOKEN;
+  if (!token) throw Object.assign(new Error("HF_TOKEN is not configured."), { status: 503 });
+  const endpoint = process.env.HF_WHISPER_ENDPOINT || "https://router.huggingface.co/hf-inference/models/" + (process.env.HF_WHISPER_MODEL || "openai/whisper-large-v3");
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { authorization: "Bearer " + token, "content-type": file.type || "application/octet-stream" },
+    body: Buffer.from(await file.arrayBuffer()),
+    signal: AbortSignal.timeout(60000)
+  });
+  if (!response.ok) throw Object.assign(new Error("Transcription provider failed (" + response.status + ")."), { status: 502 });
+  const data = await response.json();
+  if (!data?.text?.trim()) throw Object.assign(new Error("No speech detected."), { status: 422 });
+  return String(data.text).slice(0, MAX_TEXT);
+}
+async function analyzeAudio(req) {
+  // Bound the raw body before parsing multipart; do not persist audio or transcripts server-side.
+  const buffer = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > MAX_AUDIO + 200000) throw Object.assign(new Error("Audio must be under 18 MB."), { status: 413 });
+    buffer.push(chunk);
+  }
+  const web = new Request("http://localhost/audio", {
+    method: "POST",
+    headers: { "content-type": req.headers["content-type"] || "" },
+    body: Buffer.concat(buffer)
+  });
+  const form = await web.formData();
+  const file = form.get("audio");
+  if (!(file instanceof File) || !file.size || file.size > MAX_AUDIO ||
+      !(file.type.startsWith("audio/") || /\.(m4a|wav|mp3|ogg|webm|mp4)$/i.test(file.name))) {
+    throw Object.assign(new Error("Upload an audio file under 18 MB."), { status: 415 });
+  }
+  const transcript = await audioToText(file);
+  const perspective = String(form.get("context") || "") === "recording" ? "recording" : "incoming";
+  const result = await chat(transcript, perspective);
+  result.source = perspective === "recording" ? "recording" : "audio";
+  return result;
+}
+async function staticFile(req, res, url) {
+  const pathname = decodeURIComponent(url.pathname === "/" ? "/index.html" : url.pathname);
+  const file = resolve(ROOT, "." + pathname);
+  if (!file.startsWith(ROOT + sep)) return send(res, 403, { error: "Forbidden" });
+  try {
+    const data = await readFile(file);
+    res.writeHead(200, { ...HEADERS, "content-type": MIME[extname(file)] || "application/octet-stream" });
+    res.end(req.method === "HEAD" ? undefined : data);
+  } catch { send(res, 404, { error: "Not found" }); }
+}
+export function makeServer() {
+  return createServer(async (req, res) => {
+    const url = new URL(req.url || "/", "http://localhost");
+    try {
+      if (req.method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, app: "Owed", inferenceConfigured: Boolean(process.env.HF_TOKEN), network: "monad-testnet" });
+      if (req.method === "GET" && url.pathname === "/api/config") return send(res, 200, { chainId: 10143, rpc: "https://testnet-rpc.monad.xyz", explorer: "https://testnet.monadvision.com", usdc: "0x534b2f3A21130d7a60830c2Df862319e593943A3", decimals: 6, livePayments: true, chain: "Monad Testnet" });
+      if (req.method === "POST" && url.pathname === "/api/analyze-text") {
+        if (!(req.headers["content-type"] || "").includes("application/json")) return send(res, 415, { error: "Expected JSON" });
+        const json = JSON.parse(await readBody(req));
+        const content = String(json.text || "").trim();
+        if (content.length < 8 || content.length > 12000) return send(res, 400, { error: "Enter a conversation between 8 and 12,000 characters." });
+        return send(res, 200, await chat(content));
+      }
+      if (req.method === "POST" && url.pathname === "/api/analyze-audio") return send(res, 200, await analyzeAudio(req));
+      if (req.method === "GET" || req.method === "HEAD") return staticFile(req, res, url);
+      send(res, 405, { error: "Method not allowed" });
+    } catch (e) {
+      console.error("Owed request failed:", e instanceof Error ? e.message : String(e));
+      send(res, e.status || (e.name === "SyntaxError" ? 400 : 500), { error: e instanceof Error ? e.message : "Unexpected error" });
+    }
+  });
+}
+if (process.argv[1] && import.meta.url === new URL("file://" + process.argv[1].replace(/\\/g, "/")).href) {
+  makeServer().listen(PORT, "0.0.0.0", () => console.log("Owed listening on :" + PORT));
+}
+// Also support Windows main-module paths.
+if (process.platform === "win32" && process.argv[1]?.endsWith("server.mjs")) {
+  makeServer().listen(PORT, "0.0.0.0", () => console.log("Owed listening on :" + PORT));
+}

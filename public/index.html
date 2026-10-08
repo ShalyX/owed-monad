@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#edece7">
+<meta name="description" content="Owed turns conversations into things you can actually complete — including verified Monad payments.">
+<title>Owed — From conversation to completion</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="app-shell">
+  <header class="topbar">
+    <a class="logo" href="/" aria-label="Owed home"><span class="logo-glyph">o<span class="logo-dot"></span></span><span>owed<span class="brand-period">.</span></span></a>
+    <div class="header-center"><span class="pulse"></span> FROM CONVERSATION TO COMPLETION</div>
+    <div class="head-actions"><span class="network">◈ MONAD TESTNET</span><button id="walletBtn" class="wallet-btn" type="button">Connect wallet <span>↗</span></button></div>
+  </header>
+  <main class="workspace">
+    <section class="left-panel">
+      <div class="eyebrow"><span class="eyebrow-dot"></span> THE THINGS YOU SAID YOU'D DO</div>
+      <h1>Your conversations<br>leave <em>loose ends.</em></h1>
+      <p class="intro">Money you owe. Plans you made. That link you promised to send. Owed catches the details and helps you follow through.</p>
+      <div class="capture">
+        <div class="capture-heading"><span>01 / CAPTURE</span><span class="capture-sub">CHOOSE A STARTING POINT</span></div>
+        <div class="capture-tabs" role="tablist" aria-label="Add a conversation">
+          <button role="tab" class="tab active" data-mode="paste" aria-selected="true"><span class="tab-icon">▤</span> Paste</button>
+          <button role="tab" class="tab" data-mode="record" aria-selected="false"><span class="tab-icon">◉</span> Record</button>
+          <button role="tab" class="tab" data-mode="import" aria-selected="false"><span class="tab-icon">↥</span> Import</button>
+        </div>
+        <div class="capture-body" id="pastePanel">
+          <label for="conversation" class="field-label">DROP IN THE CONVERSATION</label>
+          <textarea id="conversation" maxlength="12000" placeholder="“Hey, you still owe me $12 for the cab and $6 for lunch. Also, can you send me that venue address?”"></textarea>
+          <div class="input-foot"><span>Text from anywhere, kept in your browser</span><span id="charCount">0 / 12,000</span></div>
+          <button class="action-btn" type="button" id="analyzeText">Find what I owe <span>↗</span></button>
+        </div>
+        <div class="capture-body hidden" id="recordPanel">
+          <p class="record-helper">Record a conversation or speak a reminder. Your browser will ask for microphone access.</p>
+          <div class="recorder"><div id="recordDot" class="record-dot"></div><strong id="recordTime">00:00</strong><span id="recordStatus">Ready to record</span></div>
+          <button class="action-btn" type="button" id="recordBtn">● Start recording</button>
+          <audio id="recordPlayback" controls class="hidden"></audio>
+          <button class="secondary-btn hidden" id="analyzeRecording" type="button">Analyze recording ↗</button>
+        </div>
+        <div class="capture-body hidden" id="importPanel">
+          <label class="drop-area" for="audioFile"><span class="import-icon">↥</span><strong>Choose a voice note</strong><span id="fileLabel">MP3 · M4A · WAV · WEBM · up to 18 MB</span></label>
+          <input id="audioFile" type="file" accept="audio/*,.m4a,.mp3,.wav,.webm,.ogg,.mp4" hidden>
+          <button class="action-btn" type="button" id="analyzeFile">Analyze voice note <span>↗</span></button>
+        </div>
+        <p id="notice" class="notice hidden" role="status" aria-live="polite"></p>
+      </div>
+      <div class="lower-left"><span>PRIVATE BY DESIGN</span><p>Audio and text go to Hugging Face for AI analysis. Owed doesn't keep a server-side inbox. Your obligations live in this browser until you clear its storage.</p><button class="link-btn" type="button" id="demoBtn">Try a clearly labeled example <span>↗</span></button></div>
+    </section>
+    <section class="right-panel">
+      <div class="inbox-head"><div><span class="section-number">02 / THE FOLLOW-THROUGH</span><h2>Your obligations<span class="asterisk">✳</span></h2></div><button class="clear-btn" type="button" id="clearCompleted">Clear completed</button></div>
+      <div class="metrics"><div class="metric"><span>STILL OPEN</span><strong id="openCount">00</strong></div><div class="metric"><span>TO SETTLE</span><strong id="moneyCount">$0.00</strong></div><div class="metric"><span>COMPLETED</span><strong id="doneCount">00</strong></div></div>
+      <div class="inbox-controls"><span>YOUR INBOX</span><div class="filters"><button type="button" data-filter="all" class="filter active">All</button><button type="button" data-filter="money" class="filter">Money</button><button type="button" data-filter="task" class="filter">To-dos</button></div></div>
+      <div id="inbox" class="inbox" aria-live="polite"></div>
+      <footer class="inbox-footer"><span>AI suggests. YOU decide.</span><span>Testnet payments require confirmation.</span></footer>
+    </section>
+  </main>
+  <footer class="page-footer"><span>OWED / A BETTER WAY TO FOLLOW THROUGH</span><span>Built on Monad · Whisper + Gemma</span></footer>
+</div>
+<dialog id="payDialog" class="pay-dialog">
+  <form method="dialog"><button aria-label="Close" class="close-dialog" value="cancel">×</button></form>
+  <div class="dialog-eyebrow">SEND A PAYMENT / MONAD TESTNET</div>
+  <h3 id="dialogTitle">Settle an obligation</h3>
+  <p class="dialog-description" id="dialogEvidence"></p>
+  <div class="dialog-amount"><span>USDC TO SEND</span><strong id="dialogAmount">$0.00</strong></div>
+  <label class="field-label" for="recipientAddress">RECIPIENT WALLET ADDRESS</label>
+  <input id="recipientAddress" type="text" autocomplete="off" spellcheck="false" placeholder="0x…" maxlength="42">
+  <p class="dialog-note">Owed cannot verify that an address belongs to the person in the conversation. Confirm it with them independently.</p>
+  <label class="confirm-check"><input id="recipientVerified" type="checkbox"> <span>I independently verified this recipient wallet address.</span></label>
+  <p id="paymentNotice" class="notice hidden" role="status"></p>
+  <button id="confirmPayment" type="button" class="action-btn">Review & send USDC ↗</button>
+  <p class="dialog-bottom">TESTNET USDC HAS NO REAL-WORLD VALUE · NO AUTOMATIC PAYMENTS</p>
+</dialog>
+<script type="module" src="/app.js"></script>
+</body></html>

@@ -1,0 +1,14 @@
+{
+  "name": "owed-monad",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "From conversation to completion. Review obligations and settle USDC on Monad.",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --check server.mjs && node --check lib/obligations.mjs && node --check public/app.js && npm test"
+  },
+  "engines": { "node": ">=22" }
+}

@@ -163,7 +163,7 @@ try{
    await sleep(160);
  }
  console.log("VOICE_TRANSCRIPT_REVIEW="+JSON.stringify(voice));
- if(!voice.shown||voice.transcript!==audioFixture||voice.visibleText!==audioFixture||voice.context!=="incoming"||voice.capture!=="import"||!voice.notice.includes("NOT proof"))throw Error("Speech result is not visibly correctable");
+ if(!voice.shown||voice.transcript!==audioFixture||voice.visibleText!==audioFixture||voice.context!=="incoming"||voice.capture!=="import"||!voice.notice.includes("no obligation was confirmed"))throw Error("Speech result is not visibly correctable");
  await js("document.querySelector('#transcriptText').value='Hi there, please send me my ten dollars right now.';document.querySelector('#retryTranscript').click();true");
  let corrected;
  for(let i=0;i<25;i++){

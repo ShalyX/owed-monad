@@ -16,7 +16,7 @@ function moneyItem(items,perspective,amount,evidence,title,contextNote) {
     : cue==="listener"?"i_owe":cue==="self"?"owed_to_me":"unclear";
   const result={
     kind:"money",direction,title,amount,currency:"USD",evidence,
-    recipientName:"",recipientAddress:"",status:"open",txHash:"",payer:"",
+    recipientName:"",recipientAddress:"",status:"open",txHash:"",payer:"",createdAt:new Date().toISOString(),
     network:"monad-testnet",contextNote
   };
   return result;
@@ -71,12 +71,14 @@ function findSplit(text) {
     const ways=segment.match(/\b([2-9]|10|two|three|four|five|six|seven|eight|nine|ten)\s*(?:equal(?:ly)?\s*)?(?:ways|people|persons|of\s+us|of\s+you)\b/i)||
       segment.match(/\b(?:between|among|across)\s+([2-9]|10|two|three|four|five|six|seven|eight|nine|ten)\s+(?:people|persons|of\s+us)\b/i);
     const count=ways ? countNames[ways[1].toLowerCase()]||Number(ways[1]):null;
-    return {total:total.value,count,segment};
+    return {total:total.value,count,segment,index:hit.index};
   }).filter(Boolean);
   if(!found.length)return null;
   const s=found[0];
-  const directShare=/\b(?:you\s+(?:still\s+)?owe\s+me\s+(?:your\s+)?share|(?:send|pay|transfer)\s+me\s+(?:your\s+|the\s+)?share|(?:could|can)\s+you\s+(?:please\s+)?(?:send|pay)\s+me\s+(?:your\s+)?share)\b/i.test(text);
-  const directAmount=/\b(?:you\s+(?:still\s+)?owe\s+me|(?:send|pay|transfer)\s+me)\s+\$\s*\d/i.test(text);
+  const evidenceStart=Math.max(0,s.index-48);
+  const evidence=text.slice(evidenceStart,evidenceStart+260).trim();
+  const directShare=/\b(?:you\s+(?:still\s+)?owe\s+me\s+(?:your\s+)?share|(?:send|pay|transfer)\s+me\s+(?:your\s+|the\s+)?share|(?:could|can)\s+you\s+(?:please\s+)?(?:send|pay)\s+me\s+(?:your\s+)?share)\b/i.test(evidence);
+  const directAmount=/\b(?:you\s+(?:still\s+)?owe\s+me|(?:send|pay|transfer)\s+me)\s+\$\s*\d/i.test(evidence);
   const num=amounts(text);
   const exactShare=s.count ? Math.round((s.total*1000000)/s.count) : null;
   const exact=Number.isSafeInteger(exactShare) &&
@@ -88,7 +90,7 @@ function findSplit(text) {
   return {...s,share,directShare,explicitPerPerson,
     unambiguous:found.length===1&&num.length<=2&&!unrelated&&share!==null&&
       (directShare||explicitPerPerson),
-    evidence:text.length<=260?text:text.slice(0,260)};
+    evidence};
 }
 function condNote(){return "This payment depends on a condition. Confirm it happened before treating it as owed.";}
 export function inspectFinancialContext(text) {

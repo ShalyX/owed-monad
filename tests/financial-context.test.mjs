@@ -210,3 +210,14 @@ test("HTTP analysis fails safely through the private-model fallback on complex m
    }
  }
 });
+
+test("split evidence is grounded even when the payment is late in a long chat",()=>{
+ const text=("We discussed random plans and deadlines. ").repeat(14)+"We split $60 three ways. You owe me your share.";
+ const group=analyze(text);
+ assert.equal(group.obligations.length,1);
+ assert.equal(group.obligations[0].amount,20);
+ assert.ok(group.obligations[0].evidence.includes("We split $60"));
+ assert.ok(group.obligations[0].evidence.includes("You owe me your share"));
+ assert.ok(text.includes(group.obligations[0].evidence));
+ assert.ok(group.obligations[0].evidence.length<=260);
+});

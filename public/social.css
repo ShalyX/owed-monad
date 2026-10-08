@@ -277,3 +277,15 @@ h2 em{font-weight:500;color:#ee8476}
 @media(prefers-reduced-motion:reduce){
   .analysis-stage,.analysis-avatar,.analysis-motion span,.analysis-star,.obligation.is-exiting,.action-moment,.action-face-mark,.obligation:hover .story-spark,.obligation:hover .small-avatar{animation:none!important;transform:none!important;transition:none!important}
 }
+
+/* Count changes identify progress without spinning dashboards */
+.metric.is-counting strong{animation:count-gentle .4s cubic-bezier(.15,1.35,.35,1)}
+@keyframes count-gentle{0%{transform:scale(1);opacity:.85}48%{transform:scale(1.13);opacity:1}100%{transform:scale(1)}}
+.settlement-stamp{position:relative}
+.settlement-friends{position:absolute;display:flex;align-items:center;bottom:-13px;right:-20px;width:53px;height:28px;pointer-events:none}
+.settlement-friends svg{width:29px;height:29px;border-radius:50%;border:2px solid white;box-shadow:0 2px 6px #28543644;animation:friend-cheer .5s .16s cubic-bezier(.15,1.4,.4,1) both}
+.settlement-friends svg+svg{margin-left:-12px;animation-delay:.27s}
+.settlement-confetti{position:absolute;left:30px;top:-22px;font-size:20px;letter-spacing:9px;color:#ff917a;pointer-events:none;white-space:nowrap;animation:celebrate-once .68s ease-out both}
+@keyframes friend-cheer{from{opacity:0;transform:translateY(13px) rotate(-15deg) scale(.7)}to{opacity:1;transform:translateY(0) rotate(6deg) scale(1)}}
+@keyframes celebrate-once{from{opacity:0;transform:translateY(24px) scale(.6)}45%{opacity:1}to{opacity:1;transform:translateY(-5px) scale(1)}}
+@media(prefers-reduced-motion:reduce){.metric.is-counting strong,.settlement-confetti,.settlement-friends svg{animation:none!important}}

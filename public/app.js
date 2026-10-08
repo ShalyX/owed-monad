@@ -157,13 +157,25 @@ function itemMarkup(x,i=0) {
     (sample ? ' <span class="sample-tag">EXAMPLE</span>' : '')+'</div><div class="item-actions">'+controls+'</div></div>'+
     statusSummary+'</article>';
 }
+function updateMetric(id, value) {
+  const element = $(id);
+  const previous = element.textContent;
+  element.textContent = value;
+  if (previous !== value && element.dataset.countReady) {
+    const tile = element.closest(".metric");
+    tile?.classList.remove("is-counting");
+    void tile?.offsetWidth;
+    tile?.classList.add("is-counting");
+  }
+  element.dataset.countReady = "true";
+}
 function render() {
   const all = allItems();
   const active = all.filter((x) => !["settled", "done", "dismissed"].includes(x.status));
   const openMoney = active.filter((x) => x.kind === "money" && x.direction === "i_owe" && x.amount != null && !x.group.isSample);
-  $("openCount").textContent = String(active.length).padStart(2, "0");
-  $("moneyCount").textContent = money(openMoney.reduce((s, x) => s + x.amount, 0));
-  $("doneCount").textContent = String(all.filter((x) => x.status === "settled" || (x.kind === "task" && x.status === "done")).length).padStart(2, "0");
+  updateMetric("openCount", String(active.length).padStart(2, "0"));
+  updateMetric("moneyCount", money(openMoney.reduce((s, x) => s + x.amount, 0)));
+  updateMetric("doneCount", String(all.filter((x) => x.status === "settled" || (x.kind === "task" && x.status === "done")).length).padStart(2, "0"));
   const shown = all.filter((x) => state.filter === "all" || (state.filter === "settled" ? x.kind === "money" && x.status === "settled" : x.kind === state.filter));
   $("inboxSummary").textContent = state.filter === "settled" ? "YOUR RECEIPTS" : shown.length + (shown.length === 1 ? " MOMENT" : " MOMENTS");
   const inbox = $("inbox");

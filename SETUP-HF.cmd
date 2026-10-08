@@ -1,2 +1,4 @@
 @echo off
-powershell.exe -NoProfile -Sta -ExecutionPolicy Bypass -File "%~dp0scripts\enter-hf-token.ps1"
+cd /d "%~dp0"
+if not exist ".env" copy /y ".env.example" ".env" >nul
+start "" notepad.exe "%~dp0.env"

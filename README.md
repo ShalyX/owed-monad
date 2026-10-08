@@ -58,7 +58,7 @@ Owed was developed by adapting the broad Whisper/Gemma transcription approach fr
 
 ## Live verification workflow (October 8)
 
-**Local model setup:** Double-click `SETUP-HF.cmd` on the connected Windows PC. Enter the Hugging Face token in the masked desktop dialog. It is saved only to ignored `.env`; never paste tokens into chat or GitHub. The running Owed server checks for a newly saved token on analysis requests, so restart is unnecessary.
+**Local model setup:** Edit `C:\Users\USER\owed-monad\.env` in Notepad (or double-click `SETUP-HF.cmd` to open it). Replace the blank `HF_TOKEN=` with `HF_TOKEN=hf_your_actual_token`, keeping the model lines unchanged. Save the file. The `.env` file is Git-ignored; never paste tokens into chat or commit them. The running Owed server checks for a newly saved token on analysis requests, so restart is unnecessary. No custom token-validation dialog is required.
 
 **Real-model tests:** From PowerShell in this repo, run `npm run test:live -- tests/voice-smoke.wav`. The audio fixture is a small synthetic speech recording generated on the PC (ignored by Git). This command calls the actual Hugging Face Gemma and Whisper services and fails if either response is unavailable. Accept Google's Gemma model terms on Hugging Face and ensure the HF token has Inference Providers permission if the response is 403. Provider credits or quota may apply.
 

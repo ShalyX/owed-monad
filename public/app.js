@@ -12,6 +12,24 @@ let restoredLegacyMoneyCount = 0;
 const state = { groups: load(), filter: "all", file: null, recorded: null, recorder: null, chunks: [], timer: null, startedAt: 0, processing: false, paymentId: null, receiptId: null, receiptEpoch: 0, wallet: "" };
 $("friendStage").innerHTML = friendScene();
 $("analysisBuddy").innerHTML = avatarSvg("the-planner");
+const FRIEND_TIPS = [
+  "“Good friends. Clearer plans.” ✳",
+  "“The best reminder is a kind one.” ♥",
+  "“Keep the little promises visible.” ✦",
+  "“Only a real payment counts as paid.” ✓"
+];
+function showFriendTip(index) {
+  if (!Number.isInteger(index) || index < 0 || index >= FRIEND_TIPS.length) return;
+  $("sceneQuote").textContent = FRIEND_TIPS[index];
+  document.querySelectorAll("[data-friend-tip]").forEach((face) => {
+    const selected = Number(face.dataset.friendTip) === index;
+    face.classList.toggle("cast-selected", selected);
+    face.setAttribute("aria-pressed", String(selected));
+  });
+  $("sceneQuote").classList.remove("quote-reaction");
+  void $("sceneQuote").offsetWidth;
+  $("sceneQuote").classList.add("quote-reaction");
+}
 const SAMPLE_TEXT = "Hey, you still owe me $12 for the cab and $6 for lunch. Also, can you send me that venue address? I'll send you the photos tomorrow.";
 function load() {
   try {
@@ -189,6 +207,8 @@ function render() {
   const active = all.filter((x) => !["settled", "done", "dismissed"].includes(x.status));
   const openMoney = active.filter((x) => x.kind === "money" && x.direction === "i_owe" && x.amount != null && !x.group.isSample);
   updateMetric("openCount", String(active.length).padStart(2, "0"));
+  $("dockCount").textContent = String(active.length);
+  $("dockCount").setAttribute("aria-label", active.length + (active.length === 1 ? " open item" : " open items"));
   updateMetric("moneyCount", money(openMoney.reduce((s, x) => s + x.amount, 0)));
   updateMetric("doneCount", String(all.filter((x) => x.status === "settled" || (x.kind === "task" && x.status === "done")).length).padStart(2, "0"));
   const shown = all.filter((x) => state.filter === "all" || (state.filter === "settled" ? x.kind === "money" && x.status === "settled" : x.kind === state.filter));
@@ -430,6 +450,27 @@ function animateAction(button, id) {
   }
 }
 function wireEvents() {
+  $("friendStage").addEventListener("click", (event) => {
+    const castButton = event.target.closest("[data-friend-tip]");
+    if (castButton) showFriendTip(Number(castButton.dataset.friendTip));
+  });
+  document.querySelectorAll(".dock-link").forEach((link) => link.addEventListener("click", (event) => {
+    const destination = link.dataset.dock;
+    document.querySelectorAll(".dock-link").forEach((item) => {
+      const current = item === link;
+      item.classList.toggle("active", current);
+      if (current) item.setAttribute("aria-current", "location");
+      else item.removeAttribute("aria-current");
+    });
+    if (destination === "receipts") {
+      state.filter = "settled";
+      render();
+      $("my-inbox").scrollIntoView({behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start"});
+    } else if (destination === "inbox" && state.filter !== "all") {
+      state.filter = "all";
+      render();
+    }
+  }));
   document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
   $("conversation").addEventListener("input", () => { $("charCount").textContent = $("conversation").value.length.toLocaleString() + " / 12,000"; });
   $("analyzeText").addEventListener("click", analyzeText);
@@ -452,7 +493,16 @@ function wireEvents() {
     state.groups = clearFinishedTasks(state.groups);
     save(); render();
   });
-  document.querySelectorAll(".filter").forEach((b) => b.addEventListener("click", () => { state.filter = b.dataset.filter; render(); }));
+  document.querySelectorAll(".filter").forEach((b) => b.addEventListener("click", () => {
+    state.filter = b.dataset.filter;
+    render();
+    const target = state.filter === "settled" ? "receipts" : "inbox";
+    document.querySelectorAll(".dock-link").forEach((link) => {
+      link.classList.toggle("active", link.dataset.dock === target);
+      if (link.dataset.dock === target) link.setAttribute("aria-current", "location");
+      else link.removeAttribute("aria-current");
+    });
+  }));
   $("inbox").addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-action]");
     if (!btn) return;

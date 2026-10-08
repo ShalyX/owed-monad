@@ -54,8 +54,8 @@ export function friendScene() {
   const order=["milo-friend","aya-friend","rory-friend","jules-friend"];
   return '<div class="friend-blob blob-one"></div><div class="friend-blob blob-two"></div>'+
     '<div class="scene-mini-note">Group chat energy <span>↗</span></div>'+
-    '<div class="friend-cast">'+order.map((key,i)=>'<div class="cast-member cast-'+i+'">'+avatarSvg(key)+'</div>').join("")+'</div>'+
+    '<div class="friend-cast">'+order.map((key,i)=>'<button type="button" class="cast-member cast-'+i+'" data-friend-tip="'+i+'" aria-label="Owed crew member '+(i+1)+': show a little reminder" aria-pressed="false">'+avatarSvg(key)+'</button>').join("")+'</div>'+
     '<div class="scene-sticker scene-sticker-heart">♥</div><div class="scene-sticker scene-sticker-star">✳</div>'+
     '<div class="scene-sticker scene-sticker-spark">✦</div>'+
-    '<div class="scene-quote">“You got me next time!” <span>☕</span></div>';
+    '<div class="scene-quote" id="sceneQuote" aria-live="polite">“You got me next time!” <span>☕</span></div>';
 }

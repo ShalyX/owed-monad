@@ -19,6 +19,11 @@ try{
  const js=(expression)=>call("Runtime.evaluate",{expression,returnByValue:true,awaitPromise:true});
  await call("Runtime.enable");
  for(let i=0;i<40;i++){try{if(await js("document.readyState==='complete'&&!!document.querySelector('#inbox')"))break}catch{}await sleep(170)}
+ const sceneStart=await js("document.querySelector('#sceneQuote').textContent");
+ await js("document.querySelector('[data-friend-tip=\"2\"]').click();true");
+ const sceneAfter=await js("({tip:document.querySelector('#sceneQuote').textContent,chosen:document.querySelector('[data-friend-tip=\"2\"]').getAttribute('aria-pressed'),buttonCount:document.querySelectorAll('.friend-cast button').length})");
+ console.log("CHARACTER_REACTION="+JSON.stringify({before:sceneStart,after:sceneAfter}));
+ if(sceneAfter.tip===sceneStart||sceneAfter.chosen!=="true"||sceneAfter.buttonCount!==4)throw Error("Illustrated crew does not respond to a tap");
  const fixture=[{id:"smoke-group",title:"Realistic test message",source:"text",fingerprint:"temporary-browser-smoke",createdAt:new Date().toISOString(),obligations:[
  {id:"smoke-task",title:"Send the venue link",kind:"task",direction:"i_owe",status:"open",evidence:"Send the venue link",amount:null},
  {id:"smoke-money",title:"Coffee payback",kind:"money",direction:"i_owe",status:"open",evidence:"You owe me $0.01",amount:0.01,txHash:""}
@@ -83,6 +88,29 @@ try{
  const mobile=await js("({width:window.innerWidth,scrollWidth:document.documentElement.scrollWidth,cardWidth:document.querySelector('.obligation').getBoundingClientRect().width,toast:!!document.querySelector('.discovery-moment')})");
  console.log("MOBILE_LAYOUT="+JSON.stringify(mobile));
  if(mobile.scrollWidth>mobile.width+5||mobile.cardWidth>mobile.width)throw Error("Mobile horizontal overflow");
+ const dock=await js("(()=>{const buttons=[...document.querySelectorAll('.dock-link')],rects=buttons.map(b=>b.getBoundingClientRect());return {display:getComputedStyle(document.querySelector('.mobile-dock')).display,count:document.querySelector('#dockCount').textContent,buttons:rects.map(r=>({height:r.height,width:r.width})),bottom:document.querySelector('.mobile-dock').getBoundingClientRect().bottom,screen:window.innerHeight}})()");
+ console.log("MOBILE_DOCK="+JSON.stringify(dock));
+ if(dock.display==="none"||dock.buttons.length!==3||dock.buttons.some(b=>b.height<44)||dock.bottom>dock.screen+2)throw Error("Mobile dock is not usable");
+ await js("document.querySelector('[data-dock=receipts]').click();true");
+ const receiptsNav=await js("({filter:document.querySelector('.filter.active')?.dataset.filter,active:document.querySelector('[data-dock=receipts]').classList.contains('active')})");
+ console.log("MOBILE_RECEIPT_NAV="+JSON.stringify(receiptsNav));
+ if(receiptsNav.filter!=="settled"||!receiptsNav.active)throw Error("Mobile Receipts nav does not select archive");
+ await js("document.querySelector('[data-dock=inbox]').click();true");
+ if(!await js("document.querySelector('.filter.active')?.dataset.filter==='all'"))throw Error("Mobile Inbox nav didn't restore full inbox");
+ await js("document.querySelector('[data-dock=capture]').click();true");
+ if(!await js("document.querySelector('[data-dock=capture]').classList.contains('active')"))throw Error("Mobile Capture nav didn't activate");
+ await js("document.querySelector('#conversation').focus();true");
+ const keyboardDock=await js("getComputedStyle(document.querySelector('.mobile-dock')).display");
+ console.log("MOBILE_COMPOSING_DOCK="+keyboardDock);
+ if(keyboardDock!=="none")throw Error("Dock obstructs text entry");
+ await js("document.querySelector('#conversation').blur();true");
+ await call("Emulation.setDeviceMetricsOverride",{width:320,height:750,deviceScaleFactor:1,mobile:true});
+ await sleep(200);
+ const narrow=await js("({screen:innerWidth,scrollWidth:document.documentElement.scrollWidth,cast:document.querySelector('.friend-stage').getBoundingClientRect().width,dockVisible:getComputedStyle(document.querySelector('.mobile-dock')).display!=='none'})");
+ console.log("NARROW_MOBILE="+JSON.stringify(narrow));
+ if(narrow.scrollWidth>narrow.screen+5||!narrow.dockVisible)throw Error("Narrow mobile layout overflows or hides navigation");
+ await call("Emulation.setDeviceMetricsOverride",{width:390,height:844,deviceScaleFactor:1,mobile:true});
+ await sleep(100);
  await call("Emulation.setEmulatedMedia",{features:[{name:"prefers-reduced-motion",value:"reduce"}]});
  const reduced=await js("({reduced:matchMedia('(prefers-reduced-motion: reduce)').matches,avatar:getComputedStyle(document.querySelector('.cast-member')).animationName,card:getComputedStyle(document.querySelector('.obligation')).animationName})");
  console.log("REDUCED_MOTION="+JSON.stringify(reduced));

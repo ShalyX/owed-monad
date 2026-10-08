@@ -305,3 +305,33 @@ h2 em{font-weight:500;color:#ee8476}
 .receipt-bridge .moment-bridge-icon{background:#eef3d9;border-color:#dce6c8}
 .receipt-bridge strong{font-size:11px}
 @media(prefers-reduced-motion:reduce){.obligation.is-spotlight{animation:none!important;transform:none!important;filter:none!important}}
+
+/* Phase 3 — crew interaction and a genuinely useful small-screen dock. */
+.friend-stage .cast-member{appearance:none;background:transparent;padding:0;cursor:pointer;transition:filter .2s,box-shadow .2s,scale .2s;touch-action:manipulation}
+.friend-stage .cast-member:hover{filter:saturate(1.1);box-shadow:0 12px 24px #a66c4950}
+.friend-stage .cast-member.cast-selected{box-shadow:0 0 0 4px #ffd29d,0 10px 18px #a66c493a;filter:saturate(1.09)}
+.friend-stage .cast-member:focus-visible{outline:3px solid #31785f;outline-offset:4px}
+.scene-quote{max-width:min(68%,320px);text-align:center;line-height:1.5}
+.scene-quote.quote-reaction{animation:crew-quote-pop .42s cubic-bezier(.17,1.24,.34,1) both}
+@keyframes crew-quote-pop{0%{opacity:.55;scale:.88;translate:0 10px}65%{opacity:1;scale:1.05;translate:0 -4px}100%{opacity:1;scale:1;translate:0 0}}
+.mobile-dock{display:none}
+@media(max-width:640px){
+  /* Fixed thumb-friendly controls reduce long scrolls without obscuring feedback. */
+  .mobile-dock{position:fixed;z-index:75;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;align-items:stretch;padding:7px;border:1px solid #e1e8d9;border-radius:22px;background:#fffdf8f5;box-shadow:0 7px 30px #244b3e28;backdrop-filter:blur(16px);max-width:510px;margin-inline:auto}
+  .dock-link{min-width:0;position:relative;appearance:none;border:0;border-radius:16px;background:transparent;color:#708477;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 4px 7px;font:750 10px "Aptos","Segoe UI",system-ui,sans-serif;text-decoration:none;line-height:1.25;cursor:pointer;min-height:51px;touch-action:manipulation;transition:background .16s,color .16s,transform .16s}
+  .dock-link .dock-icon{font-size:20px;line-height:1}
+  .dock-link.active{color:#265945;background:#dff1e2}
+  .dock-link:not(.active):active{transform:scale(.97)}
+  .dock-link:focus-visible{outline:3px solid #379c74;outline-offset:1px}
+  .dock-count{position:absolute;right:calc(50% - 30px);top:4px;background:#ffcfba;color:#975342;display:grid;place-items:center;border-radius:100px;min-width:17px;height:17px;padding:0 4px;font-size:9px;font-weight:900;box-shadow:0 0 0 2px #fffdf8}
+  .page-footer{padding-bottom:calc(104px + env(safe-area-inset-bottom,0px))}
+  .action-moment,.discovery-moment,.settlement-moment{bottom:calc(88px + env(safe-area-inset-bottom,0px));max-height:calc(100dvh - 190px);overflow:auto}
+  .friend-stage .cast-member{width:clamp(64px,23vw,104px);height:clamp(64px,23vw,104px);min-width:0;min-height:0}
+  .scene-quote{max-width:55%;right:0;bottom:-5px;font-size:10px}
+  #capture,#my-inbox{scroll-margin-top:15px}
+  body:has(#conversation:focus) .mobile-dock,body:has(#recipientAddress:focus) .mobile-dock{display:none}
+}
+@media(prefers-reduced-motion:reduce){
+  .scene-quote.quote-reaction,.friend-stage .cast-member{animation:none!important;transition:none!important;transform:none!important;translate:none!important;scale:1!important}
+  .dock-link{transition:none!important}
+}

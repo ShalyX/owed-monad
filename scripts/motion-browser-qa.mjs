@@ -148,7 +148,7 @@ try{
  // allow editing and replay with the correct speaker context, and avoid false "All clear".
  await js("document.querySelector('[data-mode=import]').click();true");
  await js("document.querySelector('#importPerspective').value='incoming';true");
- const audioFixture="Yo bro, send me my ten dollars right now.";
+ const audioFixture="Hi there, please send me my ten dollars right now.";
  const zeroVoice={title:"No obligation",transcript:audioFixture,perspective:"incoming",source:"audio",obligations:[]};
  await js("window.__voiceFixture="+JSON.stringify(JSON.stringify(zeroVoice))+";window.fetch=(base=>async(url,opts)=>{if(String(url)==='/api/analyze-audio'){window.__voiceContext=opts.body.get('context');window.__voiceCapture=opts.body.get('capture');return new Response(window.__voiceFixture,{status:200,headers:{'content-type':'application/json'}})}if(String(url)==='/api/analyze-text'){const input=JSON.parse(opts.body);window.__retryPayload=input;return new Response(JSON.stringify({id:'reviewed',title:'Ten dollars',fingerprint:'reviewed-fixture',transcript:input.text,source:'text',obligations:[{id:'reviewed-item',kind:'money',direction:'i_owe',title:'Ten dollar repayment',evidence:'send me my ten dollars',amount:10,status:'open'}]}),{status:200,headers:{'content-type':'application/json'}})}return base(url,opts)})(window.fetch);true");
  await js("(()=>{const d=new DataTransfer();d.items.add(new File([new Uint8Array([82,73,70,70])],'clip.wav',{type:'audio/wav'}));const el=document.querySelector('#audioFile');el.files=d.files;el.dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('#analyzeFile').click();return true})()");
@@ -160,7 +160,7 @@ try{
  }
  console.log("VOICE_TRANSCRIPT_REVIEW="+JSON.stringify(voice));
  if(!voice.shown||voice.transcript!==audioFixture||voice.context!=="incoming"||voice.capture!=="import"||voice.notice.includes("All clear"))throw Error("Speech result is not visibly correctable");
- await js("document.querySelector('#transcriptText').value='Yo bro, send me my ten dollars right now.';document.querySelector('#retryTranscript').click();true");
+ await js("document.querySelector('#transcriptText').value='Hi there, please send me my ten dollars right now.';document.querySelector('#retryTranscript').click();true");
  let corrected;
  for(let i=0;i<25;i++){
    corrected=await js("({context:window.__retryPayload?.context,text:window.__retryPayload?.text,recorded:JSON.parse(localStorage.getItem('owed-v1-inbox')||'[]').some(g=>g.fingerprint==='reviewed-fixture')})");

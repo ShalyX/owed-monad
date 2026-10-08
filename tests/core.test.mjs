@@ -26,6 +26,17 @@ test("source evidence and wallet authority are enforced", () => {
   assert.equal(bad.obligations.length, 2);
   assert.equal(bad.obligations[0].amount, null);
 });
+test("money direction is derived from the exact quote, not a small model guess", () => {
+  const item = (evidence) => ({obligations:[{title:"Payment",kind:"money",direction:"i_owe",amount:8,evidence}]});
+  const incoming = cleanAnalysis(item("I owe you $8"), "I owe you $8");
+  assert.equal(incoming.obligations[0].direction, "owed_to_me");
+  const vague = cleanAnalysis(item("The cab cost $8"), "The cab cost $8");
+  assert.equal(vague.obligations[0].direction, "unclear");
+  const certain = cleanAnalysis(item("you owe me $8"), "you owe me $8");
+  assert.equal(certain.obligations[0].direction, "i_owe");
+  const recording = cleanAnalysis(item("I owe you $8"), "I owe you $8", "text", "recording");
+  assert.equal(recording.obligations[0].direction, "i_owe");
+});
 test("transfer amount, calldata and recipient match expected USDC encoding", () => {
   assert.equal(microUsdc("12.50"), 12500000n);
   assert.equal(transferData(TO, "12.50"), "0xa9059cbb" + TO.slice(2).padStart(64, "0") + 12500000n.toString(16).padStart(64, "0"));

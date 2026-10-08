@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { Readable } from "node:stream";
 import { pathToFileURL } from "node:url";
-import { cleanAnalysis, parseModelOutput, PROMPT } from "./lib/obligations.mjs";
+import { cleanAnalysis, parseModelOutput, PROMPT, COMPACT_PROMPT } from "./lib/obligations.mjs";
 
 // Pick up a newly saved local token without a server restart; never log it.
 function hfToken() {
@@ -46,7 +46,7 @@ async function chat(text, perspective = "incoming") {
     headers: { "authorization": "Bearer " + token, "content-type": "application/json" },
     body: JSON.stringify({
       model: local ? (process.env.OWED_TEXT_MODEL || "qwen2.5:0.5b") : (process.env.HF_GEMMA_MODEL || "google/gemma-3-12b-it"),
-      messages: [{ role: "system", content: PROMPT }, { role: "user", content: (perspective === "recording" ? "The USER is speaking in this self-recorded reminder. First-person promises and debts are the USER's own.\n\n" : "This is an INCOMING message from someone else to the user. Second-person asks and debts are the USER's obligations.\n\n") + "Analyze only this conversation:\n\n" + text }],
+      messages: [{ role: "system", content: local ? COMPACT_PROMPT : PROMPT }, { role: "user", content: (perspective === "recording" ? "The USER is speaking in this self-recorded reminder. First-person promises and debts are the USER's own.\n\n" : "This is an INCOMING message from someone else to the user. Second-person asks and debts are the USER's obligations.\n\n") + "Analyze only this conversation:\n\n" + text }],
       temperature: 0.1,
       max_tokens: 1400
     }),
@@ -59,7 +59,7 @@ async function chat(text, perspective = "incoming") {
   let parsed;
   try { parsed = parseModelOutput(answer); }
   catch { throw Object.assign(new Error("Model response was not valid JSON. Try again."), { status: 502 }); }
-  return cleanAnalysis(parsed, text);
+  return cleanAnalysis(parsed, text, "text", perspective);
 }
 async function audioToText(file) {
   const local = process.env.LOCAL_INFERENCE_URL?.replace(/\/$/, "");

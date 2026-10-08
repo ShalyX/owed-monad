@@ -196,17 +196,20 @@ try{
  if(await js("document.querySelector('#recipientVerified').checked"))throw Error("Manual address edits must invalidate earlier verification");
  await js("document.querySelector('#payDialog').close();true");
  await js("localStorage.setItem('owed-v1-inbox',"+JSON.stringify(JSON.stringify(makeSource("You owe me $10. Addresses discussed: "+walletA+" and "+walletB)))+");location.reload();true");
- for(let i=0;i<35;i++){if(await js("!!document.querySelector('button[data-action=pay][data-id=address-pay]')"))break;await sleep(110)}
+ await sleep(450);
+ for(let i=0;i<35;i++){if(await js("document.readyState==='complete'&&!!document.querySelector('button[data-action=pay][data-id=address-pay]')"))break;await sleep(110)}
  await js("document.querySelector('button[data-action=pay][data-id=address-pay]').click();true");
  const many=await js("({prefill:document.querySelector('#recipientAddress').value,checked:document.querySelector('#recipientVerified').checked,choices:document.querySelectorAll('.source-address-choice').length})");
  console.log("MULTI_ADDRESS_NO_GUESS="+JSON.stringify(many));
  if(many.prefill||many.checked||many.choices!==2)throw Error("Multiple addresses must never be silently selected");
  await js("document.querySelectorAll('.source-address-choice')[1].click();true");
  const userPick=await js("({chosen:document.querySelector('#recipientAddress').value,verified:document.querySelector('#recipientVerified').checked})");
+ console.log("MULTI_ADDRESS_USER_CHOICE="+JSON.stringify(userPick));
  if(userPick.chosen!==walletB||userPick.verified)throw Error("Choosing address must be explicit and unverified");
  await js("document.querySelector('#payDialog').close();true");
  await js("localStorage.setItem('owed-v1-inbox',"+JSON.stringify(JSON.stringify(makeSource("You owe me $10. I'll send you my wallet details later.")))+");location.reload();true");
- for(let i=0;i<35;i++){if(await js("!!document.querySelector('button[data-action=pay][data-id=address-pay]')"))break;await sleep(110)}
+ await sleep(450);
+ for(let i=0;i<35;i++){if(await js("document.readyState==='complete'&&!!document.querySelector('button[data-action=pay][data-id=address-pay]')"))break;await sleep(110)}
  await js("document.querySelector('button[data-action=pay][data-id=address-pay]').click();true");
  const absent=await js("({value:document.querySelector('#recipientAddress').value,panelHidden:document.querySelector('#sourceAddressPanel').classList.contains('hidden'),verified:document.querySelector('#recipientVerified').checked})");
  console.log("NO_ADDRESS_NOT_GUESSED="+JSON.stringify(absent));

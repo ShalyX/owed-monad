@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { Readable } from "node:stream";
+import { pathToFileURL } from "node:url";
 import { cleanAnalysis, parseModelOutput, PROMPT } from "./lib/obligations.mjs";
 
 const PORT = Number(process.env.PORT || 3000);
@@ -123,10 +124,6 @@ export function makeServer() {
     }
   });
 }
-if (process.argv[1] && import.meta.url === new URL("file://" + process.argv[1].replace(/\\/g, "/")).href) {
-  makeServer().listen(PORT, "0.0.0.0", () => console.log("Owed listening on :" + PORT));
-}
-// Also support Windows main-module paths.
-if (process.platform === "win32" && process.argv[1]?.endsWith("server.mjs")) {
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   makeServer().listen(PORT, "0.0.0.0", () => console.log("Owed listening on :" + PORT));
 }

@@ -61,6 +61,7 @@ function setProcessing(v, message = "") {
   $("analyzeText").disabled = v;
   $("analyzeFile").disabled = v;
   $("analyzeRecording").disabled = v;
+  $("retryTranscript").disabled = v;
   $("analysisStage").classList.toggle("hidden", !v);
   $("analysisTitle").textContent = v ? "Working through your moment…" : "Finding the loose ends…";
   $("analysisDetail").textContent = /Transcrib/i.test(message)
@@ -175,12 +176,14 @@ function itemMarkup(x,i=0) {
   const meta = x.group.source === "audio" ? "Voice note" : x.group.source === "recording" ? "Your recording" : "Message";
   const avatar = avatarSvg(x.group.id || x.group.fingerprint || x.group.title);
   const source = escapeHTML(x.group.title || "Your conversation");
+  const evidenceLabel = x.group.source === "audio" || x.group.source === "recording"
+    ? "FROM THE TRANSCRIPT · CHECK THE WORDS" : "FROM YOUR CONVERSATION";
   const statusSummary = x.status === "dismissed" ? '<p class="outcome-note">No USDC payment was made for this item.</p>' : "";
   return '<article class="obligation status-'+statusKey+'" data-item-id="'+actionId+'" tabindex="-1" style="--i:'+Math.min(i,15)+'">'+
     '<div class="card-top"><div class="item-icon" aria-hidden="true">'+momentIcon(x)+'</div><div class="card-titles"><div class="item-title">'+escapeHTML(x.title)+'</div>'+
     '<div class="card-meta">'+escapeHTML(meta)+' · '+source+'</div></div><div class="card-amount">'+price+
     '<span class="state-pill '+statusKey+'">'+escapeHTML(statusLabel)+'</span></div></div>'+
-    '<div class="card-story"><div class="small-avatar">'+avatar+'</div><div class="story-copy"><span class="story-label">FROM YOUR CONVERSATION</span>'+
+    '<div class="card-story"><div class="small-avatar">'+avatar+'</div><div class="story-copy"><span class="story-label">'+escapeHTML(evidenceLabel)+'</span>'+
     '<p class="item-evidence">“'+escapeHTML(x.evidence)+'”</p></div><span class="story-spark" aria-hidden="true">✧</span></div>'+
     '<div class="card-bottom"><div class="item-category"><span class="kind-dot"></span>'+escapeHTML(category(x))+
     (sample ? ' <span class="sample-tag">EXAMPLE</span>' : '')+'</div><div class="item-actions">'+controls+'</div></div>'+

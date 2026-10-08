@@ -4,6 +4,7 @@ import { extname, resolve, sep } from "node:path";
 import { Readable } from "node:stream";
 import { pathToFileURL } from "node:url";
 import { cleanAnalysis, parseModelOutput, PROMPT, COMPACT_PROMPT } from "./lib/obligations.mjs";
+import { getChainReceipt } from "./lib/chain-receipts.mjs";
 
 // Pick up a newly saved local token without a server restart; never log it.
 function hfToken() {
@@ -119,6 +120,10 @@ export function makeServer() {
     try {
       if (req.method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, app: "Owed", inferenceConfigured: Boolean(process.env.LOCAL_INFERENCE_URL ? process.env.OWED_WORKER_TOKEN : hfToken()), inferenceProvider: process.env.LOCAL_INFERENCE_URL ? "private-vps" : "huggingface", network: "monad-testnet" });
       if (req.method === "GET" && url.pathname === "/api/config") return send(res, 200, { chainId: 10143, rpc: "https://testnet-rpc.monad.xyz", explorer: "https://testnet.monadvision.com", usdc: "0x534b2f3A21130d7a60830c2Df862319e593943A3", decimals: 6, livePayments: true, chain: "Monad Testnet" });
+      if (req.method === "GET" && url.pathname === "/api/receipt") {
+        const txHash = url.searchParams.get("tx");
+        return send(res, 200, await getChainReceipt(txHash));
+      }
       if (req.method === "POST" && url.pathname === "/api/analyze-text") {
         if (!(req.headers["content-type"] || "").includes("application/json")) return send(res, 415, { error: "Expected JSON" });
         const json = JSON.parse(await readBody(req));

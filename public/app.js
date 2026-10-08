@@ -1,10 +1,11 @@
 import { CHAIN, isAddress, microUsdc, transferData, receiptMatches, switchToMonad, readReceipt, getWalletBalances } from "./payments.js";
 import { completeTask, dismissMoney, reopenDismissed, restoreLegacyMoney } from "./actions.js";
+import { makeReceiptProof } from "./receipt.js";
 
 const $ = (id) => document.getElementById(id);
 const KEY = "owed-v1-inbox";
 let restoredLegacyMoneyCount = 0;
-const state = { groups: load(), filter: "all", file: null, recorded: null, recorder: null, chunks: [], timer: null, startedAt: 0, processing: false, paymentId: null, wallet: "" };
+const state = { groups: load(), filter: "all", file: null, recorded: null, recorder: null, chunks: [], timer: null, startedAt: 0, processing: false, paymentId: null, receiptId: null, receiptEpoch: 0, wallet: "" };
 const SAMPLE_TEXT = "Hey, you still owe me $12 for the cab and $6 for lunch. Also, can you send me that venue address? I'll send you the photos tomorrow.";
 function load() {
   try {
@@ -92,7 +93,7 @@ function itemMarkup(x) {
   if (x.status === "pending") {
     controls = '<button class="small-btn" data-action="check" data-id="' + escapeHTML(x.id) + '">Check transaction ↗</button>';
   } else if (x.status === "settled" && x.txHash) {
-    controls = '<a class="tx-link" href="' + CHAIN.explorer + '/tx/' + encodeURIComponent(x.txHash) + '" target="_blank" rel="noopener noreferrer">View verified receipt ↗</a>';
+    controls = '<button class="small-btn solid" data-action="receipt" data-id="' + escapeHTML(x.id) + '">View receipt ↗</button>';
   } else if (x.status === "dismissed") {
     controls = '<span class="status-text">Dismissed · no payment</span> <button class="small-btn" data-action="reopen" data-id="' + escapeHTML(x.id) + '">Reopen ↗</button>';
   } else if (done) {
@@ -201,6 +202,70 @@ function payDialog(id) {
   hideNotice($("paymentNotice"));
   $("payDialog").showModal();
 }
+function formatReceiptAmount(amount) {
+  return "$" + Number(amount).toFixed(6).replace(/0+$/, "").replace(/\.$/, "") + " USDC";
+}
+function openReceipt(id) {
+  const item = itemById(id);
+  if (!item || item.kind !== "money" || item.status !== "settled" ||
+      !/^0x[a-fA-F0-9]{64}$/.test(item.txHash || "")) return;
+  state.receiptId = item.id;
+  $("receiptTitle").textContent = item.title;
+  $("receiptAmount").textContent = formatReceiptAmount(item.amount);
+  $("receiptPayer").textContent = item.payer || "—";
+  $("receiptRecipient").textContent = item.recipientAddress || "—";
+  $("receiptHash").textContent = item.txHash;
+  $("receiptExplorer").href = CHAIN.explorer + "/tx/" + encodeURIComponent(item.txHash);
+  $("receiptCopy").textContent = "Copy transaction hash ↗";
+  $("receiptDialog").showModal();
+  refreshReceipt(id);
+}
+async function refreshReceipt(id) {
+  const item = itemById(id);
+  if (!item || state.receiptId !== id || !$("receiptDialog").open) return;
+  const epoch = ++state.receiptEpoch;
+  const current = () => state.receiptEpoch === epoch && state.receiptId === id && $("receiptDialog").open;
+  $("receiptSeal").className = "receipt-seal";
+  $("receiptSeal").textContent = "↗";
+  $("receiptState").className = "receipt-state";
+  $("receiptState").textContent = "Checking the chain…";
+  $("receiptStatus").textContent = "Checking…";
+  $("receiptBlock").textContent = "—";
+  $("receiptTime").textContent = "—";
+  $("receiptMessage").className = "receipt-message";
+  $("receiptMessage").textContent = "Fetching a fresh receipt from Monad Testnet RPC. No wallet connection is required.";
+  $("receiptRefresh").disabled = true;
+  try {
+    const response = await fetch("/api/receipt?tx=" + encodeURIComponent(item.txHash), {
+      headers: { "accept": "application/json" }, signal: AbortSignal.timeout(18000)
+    });
+    if (!response.ok) throw new Error("Could not reach Monad Testnet to verify this receipt.");
+    const data = await response.json();
+    if (!current()) return;
+    const proof = makeReceiptProof(data, item);
+    if (!proof) throw new Error("We could not match a successful Circle USDC Transfer event to this saved payment.");
+    $("receiptSeal").className = "receipt-seal verified";
+    $("receiptSeal").textContent = "✓";
+    $("receiptState").textContent = "VERIFIED ON MONAD";
+    $("receiptStatus").textContent = "✓ Confirmed · onchain";
+    $("receiptBlock").textContent = proof.block ? "#" + proof.block : "—";
+    $("receiptTime").textContent = proof.timestamp && Number.isFinite(proof.timestamp)
+      ? new Date(proof.timestamp).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "Unavailable";
+    $("receiptMessage").textContent = "Verified against the recorded transaction: token contract, payer, recipient, amount and Transfer event all match.";
+  } catch (error) {
+    if (!current()) return;
+    $("receiptSeal").className = "receipt-seal unavailable";
+    $("receiptSeal").textContent = "!";
+    $("receiptState").className = "receipt-state unavailable";
+    $("receiptState").textContent = "Could not reverify";
+    $("receiptStatus").textContent = "Verification unavailable";
+    $("receiptMessage").className = "receipt-message unavailable";
+    $("receiptMessage").textContent = (error?.message || "Blockchain verification unavailable.") + " The fields above are from your browser's saved record. Check the explorer or retry; no new payment is needed.";
+  } finally {
+    if (current()) $("receiptRefresh").disabled = false;
+  }
+}
+
 async function connectWallet() {
   if (!window.ethereum?.request) throw new Error("Install an EVM wallet (such as MetaMask or Rabby) to pay.");
   const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
@@ -307,6 +372,7 @@ function wireEvents() {
     if (!item) return;
     if (btn.dataset.action === "pay") return payDialog(item.id);
     if (btn.dataset.action === "check") return checkReceiptFor(item);
+    if (btn.dataset.action === "receipt") return openReceipt(item.id);
     if (btn.dataset.action === "complete") {
       if (!completeTask(item)) return showNotice("Only non-payment tasks can be marked completed.", true);
       save(); render(); showNotice("Task marked complete."); return;
@@ -324,6 +390,18 @@ function wireEvents() {
   });
   $("confirmPayment").addEventListener("click", confirmPayment);
   $("payDialog").addEventListener("close", () => { state.paymentId = null; $("recipientVerified").checked = false; });
+  $("receiptDialog").addEventListener("close", () => { state.receiptId = null; state.receiptEpoch++; });
+  $("receiptRefresh").addEventListener("click", () => { if (state.receiptId) refreshReceipt(state.receiptId); });
+  $("receiptCopy").addEventListener("click", async () => {
+    const item = itemById(state.receiptId);
+    if (!item?.txHash) return;
+    try {
+      await navigator.clipboard.writeText(item.txHash);
+      $("receiptCopy").textContent = "✓ Hash copied";
+    } catch {
+      $("receiptCopy").textContent = "Copy unavailable · select hash above";
+    }
+  });
   if (window.ethereum?.on) {
     window.ethereum.on("accountsChanged", () => { state.wallet = ""; $("walletBtn").textContent = "Connect wallet ↗"; });
     window.ethereum.on("chainChanged", () => { state.wallet = ""; $("walletBtn").textContent = "Connect wallet ↗"; });

@@ -31,6 +31,10 @@ try{
  await js("document.querySelector('button[data-action=\"complete\"][data-id=\"smoke-task\"]').click();true");
  const completed=await snap();console.log("TASK_COMPLETE="+JSON.stringify(completed));
  if(completed.task!=="done"||!completed.notice.includes("Task completed. Nothing was paid.")||!completed.class.includes("action-task")||completed.money!=="open")throw Error("Task completion feedback not accurate");
+ await sleep(350);
+ const countMotion=await js("({open:document.querySelector('#openCount').textContent,done:document.querySelector('#doneCount').textContent,animated:document.querySelector('.metric-done').classList.contains('is-counting')})");
+ console.log("TASK_COUNT_MOTION="+JSON.stringify(countMotion));
+ if(Number(countMotion.open)!==1||Number(countMotion.done)!==1||!countMotion.animated)throw Error("Count animation did not accompany task completion");
  await js("document.querySelector('.action-undo').click();true");
  let undone=await snap();console.log("TASK_UNDO="+JSON.stringify(undone));
  if(undone.task!=="open"||undone.money!=="open")throw Error("Task undo failed");
@@ -55,6 +59,12 @@ try{
  for(let i=0;i<35;i++){found=await js("!!document.querySelector('.discovery-moment')&&!document.querySelector('#analyzeText').disabled&&document.querySelector('#analysisStage').classList.contains('hidden')");if(found)break;await sleep(90)}
  console.log("ANALYSIS_DISCOVERY_VISIBLE="+found);
  if(!found)throw Error("Extraction reveal not working");
+ // Presentation-only smoke check: this invokes the standalone visual, NOT the payment logic.
+ await js("import('/delight.js').then(m=>{m.showSettlementMoment(()=>{});return true})");
+ const cheer=await js("({avatars:document.querySelectorAll('.settlement-moment .settlement-friends svg').length,confetti:!!document.querySelector('.settlement-confetti'),label:document.querySelector('.settlement-words strong')?.textContent})");
+ console.log("PAYMENT_CELEBRATION_PRESENTATION_ONLY="+JSON.stringify(cheer));
+ if(cheer.avatars!==2||!cheer.confetti||!cheer.label.includes('All settled'))throw Error("Verified-payment celebration visual incomplete");
+ await js("document.querySelector('.settlement-moment')?.remove();true");
  const screenshot=await call("Page.captureScreenshot",{format:"png",captureBeyondViewport:false});
  const out="/tmp/owed-motion-desktop.png";
  if(screenshot?.data){await writeFile(out,Buffer.from(screenshot.data,"base64"));console.log("DESKTOP_SCREENSHOT="+out)}

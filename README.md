@@ -55,3 +55,21 @@ Test with genuine audio and external wallets, improve ambiguous money detection,
 ## Upstream
 
 Owed was developed by adapting the broad Whisper/Gemma transcription approach from VoiceDebt, without replacing or mutating that repository.
+
+## Live verification workflow (October 8)
+
+**Local model setup:** Double-click `SETUP-HF.cmd` on the connected Windows PC. Enter the Hugging Face token in the masked desktop dialog. It is saved only to ignored `.env`; never paste tokens into chat or GitHub. The running Owed server checks for a newly saved token on analysis requests, so restart is unnecessary.
+
+**Real-model tests:** From PowerShell in this repo, run `npm run test:live -- tests/voice-smoke.wav`. The audio fixture is a small synthetic speech recording generated on the PC (ignored by Git). This command calls the actual Hugging Face Gemma and Whisper services and fails if either response is unavailable. Accept Google's Gemma model terms on Hugging Face and ensure the HF token has Inference Providers permission if the response is 403. Provider credits or quota may apply.
+
+**RPC proof:** `npm run probe:monad` checks chain identity, deployed USDC bytecode and the 6-decimal token interface using a live public Monad Testnet RPC. This is infrastructure verification, NOT a settled payment.
+
+**First actual payment (browser wallet):**
+1. Open `http://localhost:3000`, connect an injected browser EVM wallet (e.g. MetaMask or Rabby) and use Monad Testnet.
+2. Fund the connected address with faucet MON for gas from https://faucet.monad.xyz/ and Circle testnet USDC from https://faucet.circle.com/ (select Monad Testnet). Faucets may require user interaction.
+3. Paste a real small debt message, e.g. `You still owe me 0.01 USDC for coffee.`, and analyze with real Gemma. Do not use the nonpayable sample card.
+4. Open Pay, supply a recipient testnet address confirmed independently by the user, check the verification box and approve the exact USDC transfer in the wallet.
+5. Wait for Owed to mark **Settled** only after it sees the exact matching ERC-20 Transfer event on a successful transaction receipt.
+6. Independently verify using `npm run verify:payment -- 0xTXHASH 0xPAYER 0xRECIPIENT 0.01`. The verifier checks Monad Testnet chain ID, the signed transaction's USDC destination and exact calldata, receipt status, and Transfer event fields before printing VERIFIED.
+
+**Current evidence:** Automated tests and the public-RPC token probe are passing. Real Whisper/Gemma inference and a funded USDC transfer are still pending local token configuration and wallet-funded signing. Never substitute synthetic responses or a mock receipt for this milestone.

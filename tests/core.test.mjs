@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { makeServer } from "../server.mjs";
 import { cleanAnalysis } from "../lib/obligations.mjs";
-import { CHAIN, microUsdc, transferData, receiptMatches } from "../public/payments.js";
+import { CHAIN, microUsdc, transferData, receiptMatches, getWalletBalances } from "../public/payments.js";
 
 const FROM = "0x" + "1".repeat(40);
 const TO = "0x" + "2".repeat(40);
@@ -31,6 +31,18 @@ test("transfer amount, calldata and recipient match expected USDC encoding", () 
   assert.equal(transferData(TO, "12.50"), "0xa9059cbb" + TO.slice(2).padStart(64, "0") + 12500000n.toString(16).padStart(64, "0"));
   assert.throws(() => microUsdc("0"));
   assert.throws(() => microUsdc("1.1234567"));
+});
+test("balance preflight reads native gas and exact ERC20 balance", async () => {
+  const calls = [];
+  const provider = { request: async ({ method, params }) => {
+    calls.push({method,params});
+    return method === "eth_getBalance" ? "0x2386f26fc10000" : "0xf4240";
+  }};
+  const balance = await getWalletBalances(provider, FROM);
+  assert.equal(balance.usdc, 1000000n);
+  assert.ok(balance.mon > 0n);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].params[0].to.toLowerCase(), CHAIN.usdc.toLowerCase());
 });
 test("onchain evidence must match token, sender, destination, amount and status", () => {
   const topic = (x) => "0x" + x.slice(2).padStart(64, "0");

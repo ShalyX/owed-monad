@@ -1,4 +1,4 @@
-import { CHAIN, isAddress, microUsdc, transferData, receiptMatches, switchToMonad, readReceipt } from "./payments.js";
+import { CHAIN, isAddress, microUsdc, transferData, receiptMatches, switchToMonad, readReceipt, getWalletBalances } from "./payments.js";
 
 const $ = (id) => document.getElementById(id);
 const KEY = "owed-v1-inbox";
@@ -245,6 +245,9 @@ async function confirmPayment() {
     const from = await connectWallet();
     if (from.toLowerCase() === recipient.toLowerCase()) throw new Error("Self-payments are disabled.");
     await switchToMonad(window.ethereum);
+    const balances = await getWalletBalances(window.ethereum, from);
+    if (balances.usdc < units) throw new Error("Insufficient testnet USDC. Use Circle's Monad Testnet faucet linked below.");
+    if (balances.mon <= 0n) throw new Error("No testnet MON for gas. Use the Monad faucet linked below.");
     const txHash = await window.ethereum.request({
       method: "eth_sendTransaction",
       params: [{ from, to: CHAIN.usdc, value: "0x0", data: transferData(recipient, x.amount) }]

@@ -51,6 +51,15 @@ export async function switchToMonad(provider) {
   const after = await provider.request({ method: "eth_chainId" });
   if (String(after).toLowerCase() !== CHAIN.id) throw new Error("Wallet is not on Monad Testnet.");
 }
+export async function getWalletBalances(provider, address) {
+  if (!isAddress(address)) throw new Error("Wallet address unavailable.");
+  const tokenData = "0x70a08231" + address.slice(2).toLowerCase().padStart(64, "0");
+  const [nativeHex, usdcHex] = await Promise.all([
+    provider.request({ method: "eth_getBalance", params: [address, "latest"] }),
+    provider.request({ method: "eth_call", params: [{ to: CHAIN.usdc, data: tokenData }, "latest"] })
+  ]);
+  return { mon: BigInt(nativeHex), usdc: BigInt(usdcHex) };
+}
 export async function readReceipt(provider, hash) {
   return provider.request({ method: "eth_getTransactionReceipt", params: [hash] });
 }

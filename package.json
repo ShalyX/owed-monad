@@ -8,7 +8,12 @@
     "start": "node server.mjs",
     "dev": "node --watch server.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check server.mjs && node --check lib/obligations.mjs && node --check public/app.js && npm test"
+    "check": "node --check server.mjs && node --check lib/obligations.mjs && node --check public/payments.js && node --check public/app.js && npm test",
+    "probe:monad": "node scripts/probe-monad.mjs",
+    "test:live": "node scripts/live-inference.mjs",
+    "verify:payment": "node scripts/verify-payment.mjs"
   },
-  "engines": { "node": ">=22" }
+  "engines": {
+    "node": ">=22"
+  }
 }

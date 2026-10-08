@@ -5,6 +5,15 @@ import { Readable } from "node:stream";
 import { pathToFileURL } from "node:url";
 import { cleanAnalysis, parseModelOutput, PROMPT } from "./lib/obligations.mjs";
 
+// Pick up a newly saved local token without a server restart; never log it.
+function hfToken() {
+  if (!process.env.HF_TOKEN) {
+    try { process.loadEnvFile(".env"); }
+    catch (error) { if (error.code !== "ENOENT") throw error; }
+  }
+  return process.env.HF_TOKEN;
+}
+
 const PORT = Number(process.env.PORT || 3000);
 const ROOT = resolve(process.cwd(), "public");
 const MAX_AUDIO = 18 * 1024 * 1024;
@@ -28,7 +37,7 @@ async function readBody(req, limit = MAX_TEXT) {
   return Buffer.concat(buffers).toString("utf8");
 }
 async function chat(text, perspective = "incoming") {
-  const token = process.env.HF_TOKEN;
+  const token = hfToken();
   if (!token) throw Object.assign(new Error("HF_TOKEN is not configured. Configure inference to analyze your own conversations."), { status: 503 });
   const url = process.env.HF_CHAT_ENDPOINT || "https://router.huggingface.co/v1/chat/completions";
   const response = await fetch(url, {
@@ -52,7 +61,7 @@ async function chat(text, perspective = "incoming") {
   return cleanAnalysis(parsed, text);
 }
 async function audioToText(file) {
-  const token = process.env.HF_TOKEN;
+  const token = hfToken();
   if (!token) throw Object.assign(new Error("HF_TOKEN is not configured."), { status: 503 });
   const endpoint = process.env.HF_WHISPER_ENDPOINT || "https://router.huggingface.co/hf-inference/models/" + (process.env.HF_WHISPER_MODEL || "openai/whisper-large-v3");
   const response = await fetch(endpoint, {
@@ -106,7 +115,7 @@ export function makeServer() {
   return createServer(async (req, res) => {
     const url = new URL(req.url || "/", "http://localhost");
     try {
-      if (req.method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, app: "Owed", inferenceConfigured: Boolean(process.env.HF_TOKEN), network: "monad-testnet" });
+      if (req.method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, app: "Owed", inferenceConfigured: Boolean(hfToken()), network: "monad-testnet" });
       if (req.method === "GET" && url.pathname === "/api/config") return send(res, 200, { chainId: 10143, rpc: "https://testnet-rpc.monad.xyz", explorer: "https://testnet.monadvision.com", usdc: "0x534b2f3A21130d7a60830c2Df862319e593943A3", decimals: 6, livePayments: true, chain: "Monad Testnet" });
       if (req.method === "POST" && url.pathname === "/api/analyze-text") {
         if (!(req.headers["content-type"] || "").includes("application/json")) return send(res, 415, { error: "Expected JSON" });

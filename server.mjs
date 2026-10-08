@@ -51,7 +51,7 @@ async function chat(text, perspective = "incoming") {
     }),
     signal: AbortSignal.timeout(45000)
   });
-  if (!response.ok) throw Object.assign(new Error("Model provider failed (" + response.status + ")."), { status: 502 });
+  if (!response.ok) throw Object.assign(new Error(response.status === 402 ? "Hugging Face returned HTTP 402: inference credits or billing are required. Check your Hugging Face billing settings." : "Model provider failed (" + response.status + ")."), { status: response.status === 402 ? 402 : 502 });
   const data = await response.json();
   const answer = data?.choices?.[0]?.message?.content;
   if (typeof answer !== "string") throw Object.assign(new Error("Model response was missing."), { status: 502 });
@@ -70,7 +70,7 @@ async function audioToText(file) {
     body: Buffer.from(await file.arrayBuffer()),
     signal: AbortSignal.timeout(60000)
   });
-  if (!response.ok) throw Object.assign(new Error("Transcription provider failed (" + response.status + ")."), { status: 502 });
+  if (!response.ok) throw Object.assign(new Error(response.status === 402 ? "Hugging Face returned HTTP 402 for Whisper: inference credits or billing are required." : "Transcription provider failed (" + response.status + ")."), { status: response.status === 402 ? 402 : 502 });
   const data = await response.json();
   if (!data?.text?.trim()) throw Object.assign(new Error("No speech detected."), { status: 422 });
   return String(data.text).slice(0, MAX_TEXT);

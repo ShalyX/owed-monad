@@ -1,15 +1,17 @@
 import { CHAIN, isAddress, microUsdc, transferData, receiptMatches, switchToMonad, readReceipt, getWalletBalances } from "./payments.js";
-import { completeTask, dismissMoney, reopenDismissed, restoreLegacyMoney, clearFinishedTasks } from "./actions.js";
+import { completeTask, reopenTask, dismissMoney, reopenDismissed, restoreLegacyMoney, clearFinishedTasks } from "./actions.js";
 import { makeReceiptProof } from "./receipt.js";
 import { avatarSvg, friendScene } from "./characters.js";
 import { showSettlementMoment } from "./delight.js";
 import { showDiscoveryMoment } from "./discovery.js";
+import { showActionMoment } from "./moments.js";
 
 const $ = (id) => document.getElementById(id);
 const KEY = "owed-v1-inbox";
 let restoredLegacyMoneyCount = 0;
 const state = { groups: load(), filter: "all", file: null, recorded: null, recorder: null, chunks: [], timer: null, startedAt: 0, processing: false, paymentId: null, receiptId: null, receiptEpoch: 0, wallet: "" };
 $("friendStage").innerHTML = friendScene();
+$("analysisBuddy").innerHTML = avatarSvg("the-planner");
 const SAMPLE_TEXT = "Hey, you still owe me $12 for the cab and $6 for lunch. Also, can you send me that venue address? I'll send you the photos tomorrow.";
 function load() {
   try {
@@ -41,6 +43,11 @@ function setProcessing(v, message = "") {
   $("analyzeText").disabled = v;
   $("analyzeFile").disabled = v;
   $("analyzeRecording").disabled = v;
+  $("analysisStage").classList.toggle("hidden", !v);
+  $("analysisTitle").textContent = v ? "Working through your moment…" : "Finding the loose ends…";
+  $("analysisDetail").textContent = /Transcrib/i.test(message)
+    ? "Processing your audio first, then looking for explicit commitments."
+    : "Looking for clear requests in your message. Nothing is recorded until analysis completes.";
   if (message) showNotice(message);
 }
 function addGroup(group) {
@@ -122,8 +129,10 @@ function itemMarkup(x,i=0) {
     controls = '<button class="small-btn solid" data-action="receipt" data-id="' + actionId + '">View receipt <span>↗</span></button>';
   } else if (x.status === "dismissed") {
     controls = '<button class="small-btn" data-action="reopen" data-id="' + actionId + '">↶ Reopen</button>';
+  } else if (x.status === "done" && x.kind === "task") {
+    controls = '<button class="small-btn ghost" data-action="reopen-task" data-id="' + actionId + '">↶ Reopen task</button>';
   } else if (x.status === "done" || x.status === "settled") {
-    controls = '<span class="status-text">' + (x.kind === "money" ? "Receipt needs review" : "All sorted ✦") + '</span>';
+    controls = '<span class="status-text">Receipt needs review</span>';
   } else if (payout) {
     controls = sample
       ? '<span class="sample-tag">✦ Example only · not payable</span>'
@@ -375,6 +384,18 @@ async function confirmPayment() {
   } catch (e) { showNotice(e.message || "Payment request failed.", true, note); }
   finally { $("confirmPayment").disabled = false; }
 }
+function animateAction(button, id) {
+  const card = button.closest(".obligation");
+  if (card && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    card.classList.add("is-exiting");
+    card.setAttribute("aria-busy", "true");
+    window.setTimeout(() => {
+      if (card.isConnected) render();
+    }, 245);
+  } else {
+    render();
+  }
+}
 function wireEvents() {
   document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
   $("conversation").addEventListener("input", () => { $("charCount").textContent = $("conversation").value.length.toLocaleString() + " / 12,000"; });
@@ -409,13 +430,27 @@ function wireEvents() {
     if (btn.dataset.action === "receipt") return openReceipt(item.id);
     if (btn.dataset.action === "complete") {
       if (!completeTask(item)) return showNotice("Only non-payment tasks can be marked completed.", true);
-      save(); render(); showNotice("Task marked complete."); return;
+      save();
+      animateAction(btn, item.id);
+      showActionMoment({kind:"task", personSeed:item.id, onUndo:() => {
+        if (reopenTask(item)) { save(); render(); showNotice("Task reopened. Nothing was paid."); }
+      }});
+      return;
+    }
+    if (btn.dataset.action === "reopen-task") {
+      if (!reopenTask(item)) return;
+      save(); render(); showNotice("Task reopened. Nothing was paid."); return;
     }
     if (btn.dataset.action === "dismiss") {
       if (item.kind !== "money" || !["open", "failed"].includes(item.status)) return;
       if (!window.confirm("Dismiss this money item from your open list?\n\nNo USDC will be sent. This does NOT mean the debt has been paid. You can reopen it later.")) return;
       if (!dismissMoney(item)) return showNotice("This money item cannot be dismissed while payment is pending.", true);
-      save(); render(); showNotice("Dismissed from tracking. No payment was sent or marked as settled."); return;
+      save();
+      animateAction(btn, item.id);
+      showActionMoment({kind:"money",personSeed:item.id,onUndo:() => {
+        if (reopenDismissed(item)) { save(); render(); showNotice("Money item reopened. No payment was recorded."); }
+      }});
+      return;
     }
     if (btn.dataset.action === "reopen") {
       if (!reopenDismissed(item)) return;

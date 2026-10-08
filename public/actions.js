@@ -12,6 +12,14 @@ export function completeTask(item, now = new Date()) {
   return true;
 }
 
+export function reopenTask(item) {
+  if (!item || item.kind !== "task" || item.status !== "done" || item.resolution !== "task_completed") return false;
+  item.status = "open";
+  delete item.resolution;
+  delete item.completedAt;
+  return true;
+}
+
 export function dismissMoney(item, now = new Date()) {
   if (!editable(item) || item.kind !== "money" || item.txHash) return false;
   item.status = "dismissed";

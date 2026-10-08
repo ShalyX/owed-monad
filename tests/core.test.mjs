@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { makeServer } from "../server.mjs";
 import { cleanAnalysis } from "../lib/obligations.mjs";
-import { completeTask, dismissMoney, reopenDismissed, restoreLegacyMoney, clearFinishedTasks } from "../public/actions.js";
+import { completeTask, reopenTask, dismissMoney, reopenDismissed, restoreLegacyMoney, clearFinishedTasks } from "../public/actions.js";
 import { CHAIN, microUsdc, transferData, receiptMatches, getWalletBalances, switchToMonad } from "../public/payments.js";
 
 const FROM = "0x" + "1".repeat(40);
@@ -40,6 +40,13 @@ test("money can only be dismissed or verified onchain, never manually completed"
   assert.equal(task.status, "done");
   assert.equal(task.completedAt, now.toISOString());
   assert.equal(completeTask(task), false);
+  assert.equal(reopenTask(task), true);
+  assert.equal(task.status, "open");
+  assert.equal(task.completedAt, undefined);
+  assert.equal(task.resolution, undefined);
+  assert.equal(reopenTask(task), false);
+  assert.equal(reopenTask({kind:"money",status:"done",resolution:"task_completed"}), false);
+  assert.equal(reopenTask({kind:"task",status:"done",resolution:"manual"}), false);
   for (const status of ["pending", "settled", "done"]) {
     const item = { kind: "money", status, txHash: "0xabc" };
     assert.equal(dismissMoney(item), false);

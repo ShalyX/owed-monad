@@ -223,3 +223,57 @@ h2 em{font-weight:500;color:#ee8476}
 .receipt-seal.verified{animation:discovery-pop .46s cubic-bezier(.15,1.3,.35,1) both}
 @media(max-width:600px){.discovery-moment{right:16px;bottom:16px;padding:13px 15px;gap:10px}.discovery-faces{width:43px;height:43px}.discovery-copy strong{font-size:16px}.discovery-view{padding:9px 10px}}
 @media(prefers-reduced-motion:reduce){.discovery-moment,.discovery-spark,.receipt-seal.verified{animation:none!important}}
+
+/* Owed — motion pass / social gestures, not decorative activity for its own sake */
+:root{
+  --motion-snap:cubic-bezier(.2,.85,.27,1);
+  --motion-spring:cubic-bezier(.17,1.28,.36,1);
+  --motion-quick:170ms;
+  --motion-reveal:430ms;
+}
+.analysis-stage{margin:4px 18px 14px;padding:15px 14px;background:linear-gradient(112deg,#e8f4e7,#fff4df 70%,#f9eafe);border:1px solid #dcebd5;border-radius:17px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;animation:moment-in var(--motion-reveal) var(--motion-spring) both}
+.analysis-avatar{width:54px;height:54px;border-radius:50%;overflow:hidden;background:#e4ddf4;border:3px solid white;box-shadow:0 7px 14px #60462a16;flex-shrink:0;animation:analysis-bob 1.5s ease-in-out infinite}
+.analysis-copy{min-width:0;flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:5px}
+.analysis-copy strong{font-size:13px;color:#295841;font-weight:850}
+.analysis-copy>span{font-size:10px;line-height:1.5;color:#748276}
+.analysis-motion{display:flex;align-items:center;gap:4px;margin-top:1px;height:9px}
+.analysis-motion span{height:6px;width:6px;background:#ff8c76;border-radius:100px;animation:analysis-dots 1.05s infinite ease-in-out}
+.analysis-motion span:nth-child(2){animation-delay:.14s;background:#f7c45c}
+.analysis-motion span:nth-child(3){animation-delay:.28s;background:#7cbd9a}
+.analysis-star{position:absolute;right:10px;top:2px;color:#f3ab45;font-size:24px;animation:sticker-sway 2s infinite}
+@keyframes analysis-bob{50%{transform:translateY(-5px) rotate(3deg)}}
+@keyframes analysis-dots{0%,70%,100%{transform:translateY(0);opacity:.55}35%{transform:translateY(-5px);opacity:1}}
+.obligation.is-exiting{pointer-events:none;animation:card-fold .23s cubic-bezier(.55,.08,.8,.27) both;transform-origin:70% 50%}
+@keyframes card-fold{0%{opacity:1;transform:translateY(0) rotate(0) scale(1)}100%{opacity:0;transform:translateX(32px) translateY(-8px) rotate(3deg) scale(.96)}}
+.action-moment{z-index:95;position:fixed;right:24px;bottom:25px;display:flex;align-items:center;gap:13px;width:min(460px,calc(100vw - 30px));padding:16px 17px;background:#fffef9;border:1px solid #d5e4d7;border-radius:19px;box-shadow:0 16px 56px #213f3132,0 6px 0 #b7e1c023;animation:moment-in .42s var(--motion-spring) both}
+.action-moment.action-dismissed{background:#fffaf3;border-color:#e8d8c9;box-shadow:0 16px 56px #213f3125,0 6px 0 #efdacb40}
+.action-face{width:48px;height:48px;position:relative;flex:none;border:3px solid #fff;border-radius:50%;overflow:visible}
+.action-face svg{border-radius:50%;overflow:hidden;box-shadow:0 3px 12px #5c4f3730}
+.action-face-mark{position:absolute;right:-8px;top:-9px;font-size:21px;color:#f7ad45;text-shadow:0 2px 0 #fff;animation:action-spark .46s .12s var(--motion-spring) both}
+.action-dismissed .action-face-mark{color:#b48b76;font-size:19px}
+.action-message{flex:1;min-width:0}
+.action-message strong{display:block;font-family:Georgia,serif;font-size:18px;letter-spacing:-.035em;color:#234b3a}
+.action-message p{margin:5px 0 0;font-size:11px;line-height:1.45;color:#728579}
+.action-undo{flex:none;border:0;border-radius:100px;background:#ddf2df;padding:11px 13px;color:#285943;font-weight:850;font-size:11px;transition:background var(--motion-quick),transform var(--motion-quick)}
+.action-dismissed .action-undo{background:#f8e4d4;color:#8f5847}
+.action-undo:hover{transform:translateY(-2px);background:#c6ebca}
+.action-close{position:absolute;right:7px;top:2px;padding:2px 6px;background:none;border:0;font-size:18px;color:#93a094}
+@keyframes action-spark{from{opacity:0;transform:scale(.2) rotate(-30deg)}to{opacity:1;transform:scale(1) rotate(14deg)}}
+@media(hover:hover) and (pointer:fine){
+  .card-story .small-avatar{transition:transform .26s var(--motion-spring),box-shadow .2s}
+  .obligation:hover .small-avatar{transform:rotate(-8deg) scale(1.12);box-shadow:0 5px 13px #b48b7040}
+  .obligation:hover .story-spark{animation:action-spark .42s var(--motion-spring)}
+  .friend-stage:hover .scene-quote{transform:translateY(-5px) rotate(-2deg);transition:transform .35s var(--motion-spring)}
+}
+@media(max-width:600px){
+  .analysis-stage{padding:12px;margin:4px 13px 13px;gap:10px}
+  .analysis-avatar{width:44px;height:44px}
+  .action-moment{right:15px;bottom:16px;padding:13px 11px;gap:10px}
+  .action-face{width:39px;height:39px}
+  .action-message strong{font-size:16px}
+  .action-message p{font-size:10px}
+  .action-undo{padding:9px 10px}
+}
+@media(prefers-reduced-motion:reduce){
+  .analysis-stage,.analysis-avatar,.analysis-motion span,.analysis-star,.obligation.is-exiting,.action-moment,.action-face-mark,.obligation:hover .story-spark,.obligation:hover .small-avatar{animation:none!important;transform:none!important;transition:none!important}
+}

@@ -48,6 +48,11 @@
           <input id="audioFile" type="file" accept="audio/*,.m4a,.mp3,.wav,.webm,.ogg,.mp4" hidden>
           <button class="action-btn" type="button" id="analyzeFile">Analyze voice note <span>↗</span></button>
         </div>
+        <div id="analysisStage" class="analysis-stage hidden" role="status" aria-live="polite">
+          <div class="analysis-avatar" id="analysisBuddy" aria-hidden="true"></div>
+          <div class="analysis-copy"><strong id="analysisTitle">Finding the loose ends…</strong><span id="analysisDetail">Reading your source text. No obligations are confirmed yet.</span><div class="analysis-motion" aria-hidden="true"><span></span><span></span><span></span></div></div>
+          <span class="analysis-star" aria-hidden="true">✳</span>
+        </div>
         <p id="notice" class="notice hidden" role="status" aria-live="polite"></p>
       </div>
       <div class="lower-left"><div class="privacy-icon" aria-hidden="true">♥</div><div><span>JUST BETWEEN YOU AND YOUR BROWSER</span><p>Your conversations are analyzed on the connected private server; saved obligations stay in this browser. No automatic payments, ever.</p><button class="link-btn" type="button" id="demoBtn">✦ Take a peek with example messages <span>↗</span></button></div></div>

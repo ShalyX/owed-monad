@@ -1,14 +1,18 @@
 import { CHAIN, isAddress, microUsdc, transferData, receiptMatches, switchToMonad, readReceipt, getWalletBalances } from "./payments.js";
-import { resolveManually } from "./actions.js";
+import { completeTask, dismissMoney, reopenDismissed, restoreLegacyMoney } from "./actions.js";
 
 const $ = (id) => document.getElementById(id);
 const KEY = "owed-v1-inbox";
+let restoredLegacyMoneyCount = 0;
 const state = { groups: load(), filter: "all", file: null, recorded: null, recorder: null, chunks: [], timer: null, startedAt: 0, processing: false, paymentId: null, wallet: "" };
 const SAMPLE_TEXT = "Hey, you still owe me $12 for the cab and $6 for lunch. Also, can you send me that venue address? I'll send you the photos tomorrow.";
 function load() {
   try {
     const x = JSON.parse(localStorage.getItem(KEY) || "[]");
-    return Array.isArray(x) ? x : [];
+    if (!Array.isArray(x)) return [];
+    restoredLegacyMoneyCount = restoreLegacyMoney(x);
+    if (restoredLegacyMoneyCount) localStorage.setItem(KEY, JSON.stringify(x));
+    return x;
   } catch { return []; }
 }
 function save() { localStorage.setItem(KEY, JSON.stringify(state.groups)); }
@@ -89,21 +93,24 @@ function itemMarkup(x) {
     controls = '<button class="small-btn" data-action="check" data-id="' + escapeHTML(x.id) + '">Check transaction ↗</button>';
   } else if (x.status === "settled" && x.txHash) {
     controls = '<a class="tx-link" href="' + CHAIN.explorer + '/tx/' + encodeURIComponent(x.txHash) + '" target="_blank" rel="noopener noreferrer">View verified receipt ↗</a>';
+  } else if (x.status === "dismissed") {
+    controls = '<span class="status-text">Dismissed · no payment</span> <button class="small-btn" data-action="reopen" data-id="' + escapeHTML(x.id) + '">Reopen ↗</button>';
   } else if (done) {
-    controls = '<span class="status-text done">' + (x.resolution === "manual" ? "✓ Resolved manually" : "✓ Completed") + '</span>';
+    controls = '<span class="status-text done">' + (x.kind === "money" ? "✓ Verified onchain" : "✓ Task completed") + '</span>';
   } else if (payout) {
     controls = sample
       ? '<span class="sample-tag">Example · not payable</span>'
-      : '<button class="small-btn solid" data-action="pay" data-id="' + escapeHTML(x.id) + '">Pay in USDC ↗</button>';
+      : '<button class="small-btn solid" data-action="pay" data-id="' + escapeHTML(x.id) + '">Pay in USDC ↗</button> <button class="small-btn" data-action="dismiss" data-id="' + escapeHTML(x.id) + '">Dismiss · no payment</button>';
   } else if (x.kind === "task") {
     controls = '<button class="small-btn" data-action="complete" data-id="' + escapeHTML(x.id) + '">Mark complete ✓</button>';
   } else {
-    controls = '<button class="small-btn" data-action="complete" data-id="' + escapeHTML(x.id) + '">Resolve manually ✓</button>';
+    controls = '<button class="small-btn" data-action="dismiss" data-id="' + escapeHTML(x.id) + '">Dismiss · no payment</button>';
   }
   const price = x.kind === "money" && x.amount !== null ? '<strong class="item-price">' + money(x.amount) + '</strong>' : "";
   const status = x.status === "pending" ? '<span class="status-text pending">Pending chain receipt</span>'
     : x.status === "failed" ? '<span class="status-text warning">Previous transaction failed</span>'
-    : x.status === "done" ? '<span class="status-text done">Manually completed</span>' : "";
+    : x.status === "done" ? '<span class="status-text done">Task completed</span>'
+    : x.status === "dismissed" ? '<span class="status-text">No wallet transaction occurred</span>' : "";
   return '<article class="obligation"><div class="obligation-head"><div><div class="item-category"><span class="mini-tag">' +
     escapeHTML(category(x)) + '</span>' + (sample ? '<span class="sample-tag">SAMPLE</span>' : "") +
     '</div><div class="item-title">' + escapeHTML(x.title) + '</div></div>' + price + '</div><p class="item-evidence">“' +
@@ -113,11 +120,11 @@ function itemMarkup(x) {
 }
 function render() {
   const all = allItems();
-  const active = all.filter((x) => !["settled", "done"].includes(x.status));
+  const active = all.filter((x) => !["settled", "done", "dismissed"].includes(x.status));
   const openMoney = active.filter((x) => x.kind === "money" && x.direction === "i_owe" && x.amount != null && !x.group.isSample);
   $("openCount").textContent = String(active.length).padStart(2, "0");
   $("moneyCount").textContent = money(openMoney.reduce((s, x) => s + x.amount, 0));
-  $("doneCount").textContent = String(all.length - active.length).padStart(2, "0");
+  $("doneCount").textContent = String(all.filter((x) => x.status === "settled" || (x.kind === "task" && x.status === "done")).length).padStart(2, "0");
   const shown = all.filter((x) => state.filter === "all" || x.kind === state.filter);
   const inbox = $("inbox");
   inbox.innerHTML = shown.length ? shown.map(itemMarkup).join("") :
@@ -183,7 +190,7 @@ function stopRecording() {
 }
 function payDialog(id) {
   const x = itemById(id);
-  if (!x || x.kind !== "money" || x.direction !== "i_owe" || x.amount === null || x.status === "pending" || x.status === "settled") return;
+  if (!x || x.kind !== "money" || x.direction !== "i_owe" || x.amount === null || !["open", "failed"].includes(x.status)) return;
   if (state.groups.find((g) => g.obligations?.some((o) => o.id === id))?.isSample) return showNotice("Sample obligations cannot be paid. Analyze your own conversation first.", true);
   state.paymentId = id;
   $("dialogTitle").textContent = x.title;
@@ -231,7 +238,7 @@ async function checkReceiptFor(x, loud = true) {
 async function confirmPayment() {
   const x = itemById(state.paymentId);
   const note = $("paymentNotice");
-  if (!x || x.status === "pending" || x.status === "settled") return;
+  if (!x || !["open", "failed"].includes(x.status)) return;
   const recipient = $("recipientAddress").value.trim();
   if (!isAddress(recipient)) return showNotice("Enter a valid 0x recipient address.", true, note);
   if (!$("recipientVerified").checked) return showNotice("You must independently verify the recipient address before sending.", true, note);
@@ -301,13 +308,18 @@ function wireEvents() {
     if (btn.dataset.action === "pay") return payDialog(item.id);
     if (btn.dataset.action === "check") return checkReceiptFor(item);
     if (btn.dataset.action === "complete") {
-      if (!resolveManually(item)) return showNotice("This obligation cannot be resolved manually while a payment is pending or already completed.", true);
-      save();
-      render();
-      showNotice(item.kind === "money"
-        ? "Resolved manually. No onchain USDC payment has been verified for this item."
-        : "Task marked complete.");
-      return;
+      if (!completeTask(item)) return showNotice("Only non-payment tasks can be marked completed.", true);
+      save(); render(); showNotice("Task marked complete."); return;
+    }
+    if (btn.dataset.action === "dismiss") {
+      if (item.kind !== "money" || !["open", "failed"].includes(item.status)) return;
+      if (!window.confirm("Dismiss this money item from your open list?\n\nNo USDC will be sent. This does NOT mean the debt has been paid. You can reopen it later.")) return;
+      if (!dismissMoney(item)) return showNotice("This money item cannot be dismissed while payment is pending.", true);
+      save(); render(); showNotice("Dismissed from tracking. No payment was sent or marked as settled."); return;
+    }
+    if (btn.dataset.action === "reopen") {
+      if (!reopenDismissed(item)) return;
+      save(); render(); showNotice("Money item reopened. No payment was recorded."); return;
     }
   });
   $("confirmPayment").addEventListener("click", confirmPayment);
@@ -319,4 +331,5 @@ function wireEvents() {
 }
 wireEvents();
 render();
+if (restoredLegacyMoneyCount) showNotice("Reopened " + restoredLegacyMoneyCount + " money item(s) previously marked complete without a verified payment. You can now pay or dismiss each one.");
 for (const x of allItems().filter((a) => a.status === "pending")) checkReceiptFor(x, false);

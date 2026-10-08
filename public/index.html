@@ -47,17 +47,17 @@
         </div>
         <p id="notice" class="notice hidden" role="status" aria-live="polite"></p>
       </div>
-      <div class="lower-left"><span>PRIVATE BY DESIGN</span><p>Audio and text go to Hugging Face for AI analysis. Owed doesn't keep a server-side inbox. Your obligations live in this browser until you clear its storage.</p><button class="link-btn" type="button" id="demoBtn">Try a clearly labeled example <span>↗</span></button></div>
+      <div class="lower-left"><span>PRIVATE BY DESIGN</span><p>Audio and text are analyzed on your private VPS through an SSH connection. Owed doesn't keep a server-side inbox; your obligations live in this browser until you clear its storage.</p><button class="link-btn" type="button" id="demoBtn">Try a clearly labeled example <span>↗</span></button></div>
     </section>
     <section class="right-panel">
       <div class="inbox-head"><div><span class="section-number">02 / THE FOLLOW-THROUGH</span><h2>Your obligations<span class="asterisk">✳</span></h2></div><button class="clear-btn" type="button" id="clearCompleted">Clear completed</button></div>
       <div class="metrics"><div class="metric"><span>STILL OPEN</span><strong id="openCount">00</strong></div><div class="metric"><span>TO SETTLE</span><strong id="moneyCount">$0.00</strong></div><div class="metric"><span>COMPLETED</span><strong id="doneCount">00</strong></div></div>
       <div class="inbox-controls"><span>YOUR INBOX</span><div class="filters"><button type="button" data-filter="all" class="filter active">All</button><button type="button" data-filter="money" class="filter">Money</button><button type="button" data-filter="task" class="filter">To-dos</button></div></div>
       <div id="inbox" class="inbox" aria-live="polite"></div>
-      <footer class="inbox-footer"><span>AI suggests. YOU decide.</span><span>Testnet payments require confirmation.</span></footer>
+      <footer class="inbox-footer"><span>AI suggests. YOU decide.</span><span>Only verified USDC transfers count as paid.</span></footer>
     </section>
   </main>
-  <footer class="page-footer"><span>OWED / A BETTER WAY TO FOLLOW THROUGH</span><span>Built on Monad · Whisper + Gemma</span></footer>
+  <footer class="page-footer"><span>OWED / A BETTER WAY TO FOLLOW THROUGH</span><span>Built on Monad · Whisper + Qwen2.5</span></footer>
 </div>
 <dialog id="payDialog" class="pay-dialog">
   <form method="dialog"><button aria-label="Close" class="close-dialog" value="cancel">×</button></form>

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { makeServer } from "../server.mjs";
 import { cleanAnalysis } from "../lib/obligations.mjs";
-import { resolveManually } from "../public/actions.js";
+import { completeTask, dismissMoney, reopenDismissed, restoreLegacyMoney } from "../public/actions.js";
 import { CHAIN, microUsdc, transferData, receiptMatches, getWalletBalances } from "../public/payments.js";
 
 const FROM = "0x" + "1".repeat(40);
@@ -17,28 +17,52 @@ const fixture = () => ({
     { title: "Address", kind: "task", direction: "i_owe", amount: null, evidence: "Please send the address." }
   ]
 });
-test("Resolve manually works on unpriced money and tasks without faking a settlement", () => {
-  const completedAt = new Date("2026-10-08T10:00:00.000Z");
-  for (const item of [
-    { kind: "money", direction: "i_owe", amount: null, status: "open" },
-    { kind: "money", direction: "owed_to_me", amount: 5, status: "open" },
-    { kind: "task", direction: "i_owe", amount: null, status: "open" },
-    { kind: "money", direction: "unclear", amount: null, status: "failed" }
-  ]) {
-    assert.equal(resolveManually(item, completedAt), true);
-    assert.equal(item.status, "done");
-    assert.equal(item.resolution, "manual");
-    assert.equal(item.completedAt, completedAt.toISOString());
-    assert.equal(item.txHash, undefined);
-    assert.equal(item.settledAt, undefined);
-    assert.equal(resolveManually(item, completedAt), false);
-  }
+test("money can only be dismissed or verified onchain, never manually completed", () => {
+  const now = new Date("2026-10-08T10:00:00.000Z");
+  const money = { kind: "money", direction: "i_owe", amount: null, status: "open", txHash: "" };
+  assert.equal(completeTask(money, now), false);
+  assert.equal(money.status, "open");
+  assert.equal(dismissMoney(money, now), true);
+  assert.equal(money.status, "dismissed");
+  assert.equal(money.resolution, "dismissed_without_payment");
+  assert.equal(money.dismissedAt, now.toISOString());
+  assert.equal(money.settledAt, undefined);
+  assert.equal(money.txHash, "");
+  assert.equal(completeTask(money), false);
+  assert.equal(dismissMoney(money), false);
+  assert.equal(reopenDismissed(money), true);
+  assert.equal(money.status, "open");
+  assert.equal(money.dismissedAt, undefined);
+  assert.equal(reopenDismissed(money), false);
+  const task = { kind: "task", direction: "i_owe", status: "open" };
+  assert.equal(dismissMoney(task), false);
+  assert.equal(completeTask(task, now), true);
+  assert.equal(task.status, "done");
+  assert.equal(task.completedAt, now.toISOString());
+  assert.equal(completeTask(task), false);
   for (const status of ["pending", "settled", "done"]) {
-    const item = { kind: "money", direction: "i_owe", status, txHash: "0xabc" };
-    assert.equal(resolveManually(item), false);
+    const item = { kind: "money", status, txHash: "0xabc" };
+    assert.equal(dismissMoney(item), false);
+    assert.equal(completeTask(item), false);
     assert.equal(item.status, status);
-    assert.equal(item.txHash, "0xabc");
   }
+  assert.equal(dismissMoney({kind:"money",status:"open",txHash:"0xabc"}), false);
+});
+test("legacy money marked done without a wallet payment reopens safely", () => {
+  const groups = [{obligations:[
+    {kind:"money",status:"done",resolution:"manual",completedAt:"2026-10-08",txHash:""},
+    {kind:"task",status:"done",resolution:"manual",completedAt:"2026-10-08"},
+    {kind:"money",status:"settled",txHash:"0x123",settledAt:"2026-10-08"},
+    {kind:"money",status:"dismissed",resolution:"dismissed_without_payment"}
+  ]}];
+  assert.equal(restoreLegacyMoney(groups),1);
+  assert.equal(groups[0].obligations[0].status,"open");
+  assert.equal(groups[0].obligations[0].resolution,undefined);
+  assert.equal(groups[0].obligations[0].completedAt,undefined);
+  assert.equal(groups[0].obligations[1].status,"done");
+  assert.equal(groups[0].obligations[2].status,"settled");
+  assert.equal(groups[0].obligations[3].status,"dismissed");
+  assert.equal(restoreLegacyMoney(groups),0);
 });
 test("source evidence and wallet authority are enforced", () => {
   const x = cleanAnalysis(fixture(), TEXT);

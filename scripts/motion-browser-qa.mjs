@@ -144,6 +144,35 @@ try{
  console.log("ARCHIVED_RECEIPT_CONTEXT_UNVERIFIED="+JSON.stringify(archiveProof));
  if(!archiveProof?.open||archiveProof.context!=="Coffee conversation with friends"||archiveProof.icon!=="☕"||archiveProof.state!=="Could not reverify")throw Error("Saved receipt lost context or falsely claimed onchain verification");
  await js("document.querySelector('#receiptDialog').close();true");
+ // Audio-specific regression: the UI must show exactly what the recognizer heard,
+ // allow editing and replay with the correct speaker context, and avoid false "All clear".
+ await js("document.querySelector('[data-mode=import]').click();true");
+ await js("document.querySelector('#importPerspective').value='incoming';true");
+ const audioFixture="Yo bro, send me my ten dollars right now.";
+ const zeroVoice={title:"No obligation",transcript:audioFixture,perspective:"incoming",source:"audio",obligations:[]};
+ await js("window.__voiceFixture="+JSON.stringify(JSON.stringify(zeroVoice))+";window.fetch=(base=>async(url,opts)=>{if(String(url)==='/api/analyze-audio'){window.__voiceContext=opts.body.get('context');window.__voiceCapture=opts.body.get('capture');return new Response(window.__voiceFixture,{status:200,headers:{'content-type':'application/json'}})}if(String(url)==='/api/analyze-text'){const input=JSON.parse(opts.body);window.__retryPayload=input;return new Response(JSON.stringify({id:'reviewed',title:'Ten dollars',fingerprint:'reviewed-fixture',transcript:input.text,source:'text',obligations:[{id:'reviewed-item',kind:'money',direction:'i_owe',title:'Ten dollar repayment',evidence:'send me my ten dollars',amount:10,status:'open'}]}),{status:200,headers:{'content-type':'application/json'}})}return base(url,opts)})(window.fetch);true");
+ await js("(()=>{const d=new DataTransfer();d.items.add(new File([new Uint8Array([82,73,70,70])],'clip.wav',{type:'audio/wav'}));const el=document.querySelector('#audioFile');el.files=d.files;el.dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('#analyzeFile').click();return true})()");
+ let voice;
+ for(let i=0;i<35;i++){
+   voice=await js("({shown:!document.querySelector('#transcriptReview').classList.contains('hidden'),transcript:document.querySelector('#transcriptText').value,context:window.__voiceContext,capture:window.__voiceCapture,notice:document.querySelector('#notice').textContent})");
+   if(voice.shown)break;
+   await sleep(160);
+ }
+ console.log("VOICE_TRANSCRIPT_REVIEW="+JSON.stringify(voice));
+ if(!voice.shown||voice.transcript!==audioFixture||voice.context!=="incoming"||voice.capture!=="import"||voice.notice.includes("All clear"))throw Error("Speech result is not visibly correctable");
+ await js("document.querySelector('#transcriptText').value='Yo bro, send me my ten dollars right now.';document.querySelector('#retryTranscript').click();true");
+ let corrected;
+ for(let i=0;i<25;i++){
+   corrected=await js("({context:window.__retryPayload?.context,text:window.__retryPayload?.text,recorded:JSON.parse(localStorage.getItem('owed-v1-inbox')||'[]').some(g=>g.fingerprint==='reviewed-fixture')})");
+   if(corrected.recorded)break;
+   await sleep(150);
+ }
+ console.log("RECHECK_CORRECTED_SPEECH="+JSON.stringify(corrected));
+ if(corrected.context!=="incoming"||corrected.text!==audioFixture||!corrected.recorded)throw Error("Corrected transcript was not reanalyzed as an incoming message");
+ await js("document.querySelector('[data-mode=record]').click();true");
+ const selfChoice=await js("({defaultContext:document.querySelector('#recordPerspective').value,choices:document.querySelector('#recordPerspective').options.length})");
+ console.log("RECORD_SPEAKER_SELECTION="+JSON.stringify(selfChoice));
+ if(selfChoice.defaultContext!=="incoming"||selfChoice.choices!==2)throw Error("Built-in recording must offer incoming / self-reminder distinction");
  if(errors.length)throw Error("Browser exceptions: "+errors.join("; "));
  console.log("PASS_BROWSER_TASK_MONEY_UNDO_DISCOVERY_MOBILE_REDUCED_MOTION");
 }catch(e){failures++;console.log("BROWSER_QA_FAILURE="+e.message)}

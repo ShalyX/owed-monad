@@ -4,6 +4,7 @@ import { extname, resolve, sep } from "node:path";
 import { Readable } from "node:stream";
 import { pathToFileURL } from "node:url";
 import { cleanAnalysis, parseModelOutput, PROMPT, COMPACT_PROMPT } from "./lib/obligations.mjs";
+import { explicitSpokenPayments } from "./lib/spoken-obligations.mjs";
 import { getChainReceipt } from "./lib/chain-receipts.mjs";
 
 // Pick up a newly saved local token without a server restart; never log it.
@@ -59,7 +60,16 @@ async function chat(text, perspective = "incoming") {
   if (typeof answer !== "string") throw Object.assign(new Error("Model response was missing."), { status: 502 });
   let parsed;
   try { parsed = parseModelOutput(answer); }
-  catch { throw Object.assign(new Error("Model response was not valid JSON. Try again."), { status: 502 }); }
+  catch { parsed = null; }
+  if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.obligations)) {
+    // Never report "All clear" for a model parsing failure.
+    // Only recover exact, explicit payment requests; ungrounded guesses fail.
+    const grounded = explicitSpokenPayments(text, perspective);
+    if (!grounded.length) throw Object.assign(new Error("AI could not interpret this message. Review the transcript and try correcting it."), { status: 502 });
+    const recovered = cleanAnalysis({title:"Payment request to review",summary:"Recovered an explicit payment request from source speech.",obligations:[]}, text, "text", perspective);
+    recovered.analysisNote = "The AI response was incomplete. The quoted payment request was recovered directly from your transcript. Check the wording and amount before acting.";
+    return recovered;
+  }
   return cleanAnalysis(parsed, text, "text", perspective);
 }
 async function audioToText(file) {
@@ -100,8 +110,16 @@ async function analyzeAudio(req) {
   }
   const transcript = await audioToText(file);
   const perspective = String(form.get("context") || "") === "recording" ? "recording" : "incoming";
-  const result = await chat(transcript, perspective);
-  result.source = perspective === "recording" ? "recording" : "audio";
+  let result;
+  try { result = await chat(transcript, perspective); }
+  catch (error) {
+    // Return transcription to the user's own browser for correction on AI errors.
+    // Audio/transcripts are not logged or persisted on the server.
+    error.transcript = transcript;
+    throw error;
+  }
+  result.source = String(form.get("capture") || "") === "record" ? "recording" : "audio";
+  result.perspective = perspective;
   return result;
 }
 async function staticFile(req, res, url) {
@@ -129,14 +147,14 @@ export function makeServer() {
         const json = JSON.parse(await readBody(req));
         const content = String(json.text || "").trim();
         if (content.length < 8 || content.length > 12000) return send(res, 400, { error: "Enter a conversation between 8 and 12,000 characters." });
-        return send(res, 200, await chat(content));
+        return send(res, 200, await chat(content, json.context === "recording" ? "recording" : "incoming"));
       }
       if (req.method === "POST" && url.pathname === "/api/analyze-audio") return send(res, 200, await analyzeAudio(req));
       if (req.method === "GET" || req.method === "HEAD") return staticFile(req, res, url);
       send(res, 405, { error: "Method not allowed" });
     } catch (e) {
       console.error("Owed request failed:", e instanceof Error ? e.message : String(e));
-      send(res, e.status || (e.name === "SyntaxError" ? 400 : 500), { error: e instanceof Error ? e.message : "Unexpected error" });
+      send(res, e.status || (e.name === "SyntaxError" ? 400 : 500), { error: e instanceof Error ? e.message : "Unexpected error", ...(typeof e.transcript === "string" ? { transcript: e.transcript } : {}) });
     }
   });
 }

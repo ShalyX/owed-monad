@@ -9,7 +9,7 @@ import { showActionMoment } from "./moments.js";
 const $ = (id) => document.getElementById(id);
 const KEY = "owed-v1-inbox";
 let restoredLegacyMoneyCount = 0;
-const state = { groups: load(), filter: "all", file: null, recorded: null, recorder: null, chunks: [], timer: null, startedAt: 0, processing: false, paymentId: null, receiptId: null, receiptEpoch: 0, wallet: "" };
+const state = { groups: load(), filter: "all", file: null, recorded: null, recorder: null, chunks: [], timer: null, startedAt: 0, processing: false, paymentId: null, receiptId: null, receiptEpoch: 0, wallet: "", lastVoicePerspective: "incoming" };
 $("friendStage").innerHTML = friendScene();
 $("analysisBuddy").innerHTML = avatarSvg("the-planner");
 const FRIEND_TIPS = [
@@ -68,6 +68,12 @@ function setProcessing(v, message = "") {
     : "Looking for clear requests in your message. Nothing is recorded until analysis completes.";
   if (message) showNotice(message);
 }
+function showTranscriptReview(transcript, perspective="incoming") {
+  if (!transcript?.trim()) return;
+  state.lastVoicePerspective = perspective;
+  $("transcriptText").value = transcript.slice(0,12000);
+  $("transcriptReview").classList.remove("hidden");
+}
 function addGroup(group) {
   if (!Array.isArray(group.obligations)) throw new Error("Invalid obligation data.");
   if (state.groups.some((g) => g.fingerprint === group.fingerprint)) {
@@ -78,34 +84,39 @@ function addGroup(group) {
   save();
   render();
   if (!group.isSample) showDiscoveryMoment(group, () => focusObligation(group.obligations[0]?.id));
-  showNotice(group.obligations.length
+  showNotice(group.analysisNote || (group.obligations.length
     ? "✦ Found " + group.obligations.length + (group.obligations.length === 1 ? " little thing" : " little things") + " worth remembering. Check the evidence before taking action."
-    : "All clear! No explicit obligations in that conversation.");
+    : "No explicit request found. If this was a voice note, please check the transcript before assuming nothing is owed."));
 }
-async function analyzeText() {
-  const text = $("conversation").value.trim();
+async function analyzeText(perspective = "incoming", transcriptOverride = null) {
+  const text = typeof transcriptOverride === "string" ? transcriptOverride.trim() : $("conversation").value.trim();
   if (text.length < 8) return showNotice("Paste a conversation first (at least 8 characters).", true);
   setProcessing(true, "Reading the conversation and extracting explicit obligations…");
   try {
-    const response = await fetch("/api/analyze-text", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) });
+    const response = await fetch("/api/analyze-text", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, context: perspective }) });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Analysis failed.");
-    addGroup(result);
+    if (result.obligations?.length) addGroup(result);
+    else showNotice("No clear obligation found. Review the words and speaker context before treating this as all clear.");
   } catch (e) { showNotice(e.message, true); }
   finally { setProcessing(false); }
 }
-async function analyzeAudio(file, context = "incoming") {
+async function analyzeAudio(file, context = "incoming", capture = "import") {
   if (!file) return showNotice("Choose or record an audio note first.", true);
   if (file.size > 18 * 1024 * 1024) return showNotice("Keep the voice note under 18 MB.", true);
+  $("transcriptReview").classList.add("hidden");
   setProcessing(true, "Transcribing and extracting explicit obligations…");
   try {
     const form = new FormData();
     form.append("audio", file, file.name || "recording.webm");
     form.set("context", context);
+    form.set("capture", capture);
     const response = await fetch("/api/analyze-audio", { method: "POST", body: form });
     const result = await response.json();
+    if (result.transcript) showTranscriptReview(result.transcript, context);
     if (!response.ok) throw new Error(result.error || "Audio analysis failed.");
-    addGroup(result);
+    if (result.obligations?.length) addGroup(result);
+    else showNotice("No clear request found in the audio. Review what Owed heard below, and correct any missed words.");
   } catch (e) { showNotice(e.message, true); }
   finally { setProcessing(false); }
 }
@@ -475,13 +486,14 @@ function wireEvents() {
   }));
   document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
   $("conversation").addEventListener("input", () => { $("charCount").textContent = $("conversation").value.length.toLocaleString() + " / 12,000"; });
-  $("analyzeText").addEventListener("click", analyzeText);
+  $("analyzeText").addEventListener("click", () => analyzeText());
+  $("retryTranscript").addEventListener("click", () => analyzeText(state.lastVoicePerspective, $("transcriptText").value));
   $("audioFile").addEventListener("change", (event) => {
     state.file = event.target.files?.[0] || null;
     $("fileLabel").textContent = state.file ? state.file.name : "MP3 · M4A · WAV · WEBM · up to 18 MB";
   });
-  $("analyzeFile").addEventListener("click", () => analyzeAudio(state.file));
-  $("analyzeRecording").addEventListener("click", () => analyzeAudio(state.recorded, "recording"));
+  $("analyzeFile").addEventListener("click", () => analyzeAudio(state.file, $("importPerspective").value, "import"));
+  $("analyzeRecording").addEventListener("click", () => analyzeAudio(state.recorded, $("recordPerspective").value, "record"));
   $("recordBtn").addEventListener("click", async () => {
     try {
       if (state.recorder?.state === "recording") stopRecording();

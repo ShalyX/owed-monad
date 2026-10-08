@@ -37,13 +37,23 @@
           <button class="action-btn" type="button" id="analyzeText">Find the loose ends <span>✦</span></button>
         </div>
         <div class="capture-body hidden" id="recordPanel">
-          <p class="record-helper">Record a conversation or speak a reminder. Your browser will ask for microphone access.</p>
+          <p class="record-helper">Record a friend speaking or leave a reminder for yourself. Owed needs to know who is talking.</p>
+          <label class="field-label" for="recordPerspective">WHO IS SPEAKING?</label>
+          <select id="recordPerspective" class="speaker-select">
+            <option value="incoming" selected>Someone talking to me</option>
+            <option value="recording">Me · my own reminder</option>
+          </select>
           <div class="recorder" id="recorderVisual"><div id="recordDot" class="record-dot"></div><strong id="recordTime">00:00</strong><span id="recordStatus" role="status">Ready to record</span><span class="record-waves" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span></div>
           <button class="action-btn" type="button" id="recordBtn">● Start recording</button>
           <audio id="recordPlayback" controls class="hidden"></audio>
           <button class="secondary-btn hidden" id="analyzeRecording" type="button">Analyze recording ↗</button>
         </div>
         <div class="capture-body hidden" id="importPanel">
+          <label class="field-label" for="importPerspective">WHO IS SPEAKING?</label>
+          <select id="importPerspective" class="speaker-select">
+            <option value="incoming" selected>Someone talking to me</option>
+            <option value="recording">Me · my own reminder</option>
+          </select>
           <label class="drop-area" for="audioFile"><span class="import-icon">↥</span><strong>Choose a voice note</strong><span id="fileLabel">MP3 · M4A · WAV · WEBM · up to 18 MB</span></label>
           <input id="audioFile" type="file" accept="audio/*,.m4a,.mp3,.wav,.webm,.ogg,.mp4" hidden>
           <button class="action-btn" type="button" id="analyzeFile">Analyze voice note <span>↗</span></button>
@@ -54,6 +64,13 @@
           <span class="analysis-star" aria-hidden="true">✳</span>
         </div>
         <p id="notice" class="notice hidden" role="status" aria-live="polite"></p>
+        <div id="transcriptReview" class="transcript-review hidden">
+          <div class="transcript-heading"><span aria-hidden="true">✎</span><div><strong>What Owed heard</strong><span>Speech recognition can miss accents, names, and amounts.</span></div></div>
+          <label for="transcriptText" class="field-label">CHECK OR CORRECT THE TRANSCRIPT</label>
+          <textarea id="transcriptText" maxlength="12000" spellcheck="true" aria-describedby="transcriptHelp"></textarea>
+          <p id="transcriptHelp">This is the recognized speech, not a confirmed payment request. Correct errors before retrying.</p>
+          <button id="retryTranscript" class="secondary-btn" type="button">Re-check corrected text ↗</button>
+        </div>
       </div>
       <div class="lower-left"><div class="privacy-icon" aria-hidden="true">♥</div><div><span>JUST BETWEEN YOU AND YOUR BROWSER</span><p>Your conversations are analyzed on the connected private server; saved obligations stay in this browser. No automatic payments, ever.</p><button class="link-btn" type="button" id="demoBtn">✦ Take a peek with example messages <span>↗</span></button></div></div>
     </section>

@@ -1,3 +1,4 @@
+param([switch]$NoBrowser)
 $ErrorActionPreference = 'Stop'
 $ssh = 'C:\Program Files\Git\usr\bin\ssh.exe'
 if (-not (Test-Path $ssh)) { throw 'Git SSH client not found' }
@@ -36,4 +37,4 @@ if (-not (Test-Owed)) {
   if (-not $healthy) { throw "Could not establish Owed's private connection. The VPS may be temporarily unreachable." }
 }
 Write-Output 'Owed is ready at http://localhost:3001 (private SSH tunnel).'
-Start-Process 'http://localhost:3001'
+if (-not $NoBrowser) { Start-Process 'http://localhost:3001' }

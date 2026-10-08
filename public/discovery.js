@@ -1,7 +1,7 @@
 // Tiny social moment that reflects only the actual analysis result.
 // No synthetic people or obligation data is introduced.
 import { avatarSvg } from "./characters.js";
-export function showDiscoveryMoment(group) {
+export function showDiscoveryMoment(group, onView) {
   if (!Array.isArray(group?.obligations) || !group.obligations.length) return;
   document.querySelector(".discovery-moment")?.remove();
   const box = document.createElement("aside");
@@ -26,7 +26,8 @@ export function showDiscoveryMoment(group) {
   button.textContent = "See them ↗";
   button.addEventListener("click", () => {
     box.remove();
-    document.getElementById("my-inbox")?.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth"});
+    if (typeof onView === "function") onView();
+    else document.getElementById("my-inbox")?.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth"});
   });
   const close = document.createElement("button");
   close.className = "discovery-close";

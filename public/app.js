@@ -59,7 +59,7 @@ function addGroup(group) {
   state.groups.unshift(group);
   save();
   render();
-  if (!group.isSample) showDiscoveryMoment(group);
+  if (!group.isSample) showDiscoveryMoment(group, () => focusObligation(group.obligations[0]?.id));
   showNotice(group.obligations.length
     ? "✦ Found " + group.obligations.length + (group.obligations.length === 1 ? " little thing" : " little things") + " worth remembering. Check the evidence before taking action."
     : "All clear! No explicit obligations in that conversation.");
@@ -147,7 +147,7 @@ function itemMarkup(x,i=0) {
   const avatar = avatarSvg(x.group.id || x.group.fingerprint || x.group.title);
   const source = escapeHTML(x.group.title || "Your conversation");
   const statusSummary = x.status === "dismissed" ? '<p class="outcome-note">No USDC payment was made for this item.</p>' : "";
-  return '<article class="obligation status-'+statusKey+'" style="--i:'+Math.min(i,15)+'">'+
+  return '<article class="obligation status-'+statusKey+'" data-item-id="'+actionId+'" tabindex="-1" style="--i:'+Math.min(i,15)+'">'+
     '<div class="card-top"><div class="item-icon" aria-hidden="true">'+momentIcon(x)+'</div><div class="card-titles"><div class="item-title">'+escapeHTML(x.title)+'</div>'+
     '<div class="card-meta">'+escapeHTML(meta)+' · '+source+'</div></div><div class="card-amount">'+price+
     '<span class="state-pill '+statusKey+'">'+escapeHTML(statusLabel)+'</span></div></div>'+
@@ -156,6 +156,21 @@ function itemMarkup(x,i=0) {
     '<div class="card-bottom"><div class="item-category"><span class="kind-dot"></span>'+escapeHTML(category(x))+
     (sample ? ' <span class="sample-tag">EXAMPLE</span>' : '')+'</div><div class="item-actions">'+controls+'</div></div>'+
     statusSummary+'</article>';
+}
+function focusObligation(id) {
+  if (!id) return false;
+  const hasItem = state.groups.some(group => group.obligations?.some(item => item.id === id));
+  if (!hasItem) return false;
+  if (state.filter !== "all") { state.filter = "all"; render(); }
+  const card = [...document.querySelectorAll(".obligation[data-item-id]")].find(node => node.dataset.itemId === id);
+  if (!card) return false;
+  card.classList.remove("is-spotlight");
+  void card.offsetWidth;
+  card.classList.add("is-spotlight");
+  card.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+  card.focus({ preventScroll: true });
+  window.setTimeout(() => card.classList.remove("is-spotlight"), 2600);
+  return true;
 }
 function updateMetric(id, value) {
   const element = $(id);
@@ -244,8 +259,11 @@ function stopRecording() {
 function payDialog(id) {
   const x = itemById(id);
   if (!x || x.kind !== "money" || x.direction !== "i_owe" || x.amount === null || !["open", "failed"].includes(x.status)) return;
-  if (state.groups.find((g) => g.obligations?.some((o) => o.id === id))?.isSample) return showNotice("Sample obligations cannot be paid. Analyze your own conversation first.", true);
+  const sourceGroup = state.groups.find((g) => g.obligations?.some((o) => o.id === id));
+  if (sourceGroup?.isSample) return showNotice("Sample obligations cannot be paid. Analyze your own conversation first.", true);
   state.paymentId = id;
+  $("dialogContextIcon").textContent = momentIcon(x);
+  $("dialogContext").textContent = sourceGroup?.title || "Saved conversation";
   $("dialogTitle").textContent = x.title;
   $("dialogEvidence").textContent = 'From conversation: “' + x.evidence + '”';
   $("dialogAmount").textContent = money(x.amount);
@@ -262,6 +280,9 @@ function openReceipt(id) {
   if (!item || item.kind !== "money" || item.status !== "settled" ||
       !/^0x[a-fA-F0-9]{64}$/.test(item.txHash || "")) return;
   state.receiptId = item.id;
+  const sourceGroup = state.groups.find(g => g.obligations?.some(o => o.id === id));
+  $("receiptMomentIcon").textContent = momentIcon(item);
+  $("receiptMomentLabel").textContent = sourceGroup?.title || "Saved conversation";
   $("receiptTitle").textContent = item.title;
   $("receiptAmount").textContent = formatReceiptAmount(item.amount);
   $("receiptPayer").textContent = item.payer || "—";
@@ -342,7 +363,7 @@ async function checkReceiptFor(x, loud = true) {
     if (receiptMatches(receipt, x.payer, x.recipientAddress, x.amount)) {
       const wasPending = x.status === "pending";
       x.status = "settled"; x.settledAt = new Date().toISOString(); save(); render();
-      if (wasPending) showSettlementMoment(() => openReceipt(x.id));
+      if (wasPending) showSettlementMoment(() => openReceipt(x.id), x.title);
       if (loud) showNotice("Payment settled. Exact USDC Transfer event verified against the onchain receipt.");
       return true;
     }

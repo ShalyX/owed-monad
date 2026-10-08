@@ -71,6 +71,10 @@
   <form method="dialog"><button aria-label="Close" class="close-dialog" value="cancel">×</button></form>
   <div class="dialog-eyebrow">SEND A PAYMENT / MONAD TESTNET</div>
   <h3 id="dialogTitle">Settle an obligation</h3>
+  <div class="moment-bridge payment-bridge">
+    <span class="moment-bridge-icon" id="dialogContextIcon" aria-hidden="true">💌</span>
+    <div><span class="moment-bridge-eyebrow">FROM YOUR SAVED MOMENT</span><strong id="dialogContext">Your conversation</strong></div>
+  </div>
   <p class="dialog-description" id="dialogEvidence"></p>
   <div class="dialog-amount"><span>USDC TO SEND</span><strong id="dialogAmount">$0.00</strong></div>
   <label class="field-label" for="recipientAddress">RECIPIENT WALLET ADDRESS</label>
@@ -93,6 +97,10 @@
     <div id="receiptState" class="receipt-state" role="status" aria-live="polite">Checking the chain…</div>
     <h3 id="receiptHeading" class="receipt-heading">Transfer receipt</h3>
     <p id="receiptTitle" class="receipt-subtitle"></p>
+    <div class="moment-bridge receipt-bridge">
+      <span class="moment-bridge-icon" id="receiptMomentIcon" aria-hidden="true">✦</span>
+      <div><span class="moment-bridge-eyebrow">FROM YOUR SAVED MOMENT</span><strong id="receiptMomentLabel">Your conversation</strong></div>
+    </div>
     <div class="receipt-value"><span>USDC TRANSFER</span><strong id="receiptAmount">—</strong></div>
     <dl class="receipt-details">
       <div><dt>Status</dt><dd id="receiptStatus">Checking…</dd></div>

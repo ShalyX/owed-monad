@@ -59,6 +59,15 @@ try{
  for(let i=0;i<35;i++){found=await js("!!document.querySelector('.discovery-moment')&&!document.querySelector('#analyzeText').disabled&&document.querySelector('#analysisStage').classList.contains('hidden')");if(found)break;await sleep(90)}
  console.log("ANALYSIS_DISCOVERY_VISIBLE="+found);
  if(!found)throw Error("Extraction reveal not working");
+ await js("document.querySelector('.discovery-view').click();true");
+ const handoff=await js("({target:document.activeElement?.dataset?.itemId,spotlight:document.activeElement?.classList.contains('is-spotlight'),view:document.querySelector('.filter.active')?.dataset.filter})");
+ console.log("DISCOVERY_TO_CARD_HANDOFF="+JSON.stringify(handoff));
+ if(handoff.target!=="smoke-new"||!handoff.spotlight||handoff.view!=="all")throw Error("Discovery did not focus the actual newly extracted obligation");
+ await js("document.querySelector('button[data-action=pay][data-id=smoke-money]').click();true");
+ const payContext=await js("({open:document.querySelector('#payDialog').open,title:document.querySelector('#dialogTitle').textContent,context:document.querySelector('#dialogContext').textContent,icon:document.querySelector('#dialogContextIcon').textContent,recipient:document.querySelector('#recipientAddress').value,authorized:!!document.querySelector('#recipientVerified').checked})");
+ console.log("OBLIGATION_TO_PAYMENT_CONTEXT="+JSON.stringify(payContext));
+ if(!payContext.open||payContext.title!=="Coffee payback"||payContext.context!=="Realistic test message"||payContext.icon!=="☕"||payContext.authorized)throw Error("Payment handoff lost source context or auto-confirmed recipient");
+ await js("document.querySelector('#payDialog').close();true");
  // Presentation-only smoke check: this invokes the standalone visual, NOT the payment logic.
  await js("import('/delight.js').then(m=>{m.showSettlementMoment(()=>{});return true})");
  const cheer=await js("({avatars:document.querySelectorAll('.settlement-moment .settlement-friends svg').length,confetti:!!document.querySelector('.settlement-confetti'),label:document.querySelector('.settlement-words strong')?.textContent})");

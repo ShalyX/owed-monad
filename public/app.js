@@ -3,6 +3,7 @@ import { completeTask, dismissMoney, reopenDismissed, restoreLegacyMoney, clearF
 import { makeReceiptProof } from "./receipt.js";
 import { avatarSvg, friendScene } from "./characters.js";
 import { showSettlementMoment } from "./delight.js";
+import { showDiscoveryMoment } from "./discovery.js";
 
 const $ = (id) => document.getElementById(id);
 const KEY = "owed-v1-inbox";
@@ -51,6 +52,7 @@ function addGroup(group) {
   state.groups.unshift(group);
   save();
   render();
+  if (!group.isSample) showDiscoveryMoment(group);
   showNotice(group.obligations.length
     ? "✦ Found " + group.obligations.length + (group.obligations.length === 1 ? " little thing" : " little things") + " worth remembering. Check the evidence before taking action."
     : "All clear! No explicit obligations in that conversation.");

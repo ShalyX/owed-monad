@@ -154,12 +154,12 @@ try{
  await js("(()=>{const d=new DataTransfer();d.items.add(new File([new Uint8Array([82,73,70,70])],'clip.wav',{type:'audio/wav'}));const el=document.querySelector('#audioFile');el.files=d.files;el.dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('#analyzeFile').click();return true})()");
  let voice;
  for(let i=0;i<35;i++){
-   voice=await js("({shown:!document.querySelector('#transcriptReview').classList.contains('hidden'),transcript:document.querySelector('#transcriptText').value,context:window.__voiceContext,capture:window.__voiceCapture,notice:document.querySelector('#notice').textContent})");
+   voice=await js("({shown:!document.querySelector('#transcriptReview').classList.contains('hidden'),transcript:document.querySelector('#transcriptText').value,visibleText:document.querySelector('#transcriptVisible').textContent,context:window.__voiceContext,capture:window.__voiceCapture,notice:document.querySelector('#notice').textContent})");
    if(voice.shown)break;
    await sleep(160);
  }
  console.log("VOICE_TRANSCRIPT_REVIEW="+JSON.stringify(voice));
- if(!voice.shown||voice.transcript!==audioFixture||voice.context!=="incoming"||voice.capture!=="import"||voice.notice.includes("All clear"))throw Error("Speech result is not visibly correctable");
+ if(!voice.shown||voice.transcript!==audioFixture||voice.visibleText!==audioFixture||voice.context!=="incoming"||voice.capture!=="import"||!voice.notice.includes("NOT proof"))throw Error("Speech result is not visibly correctable");
  await js("document.querySelector('#transcriptText').value='Hi there, please send me my ten dollars right now.';document.querySelector('#retryTranscript').click();true");
  let corrected;
  for(let i=0;i<25;i++){

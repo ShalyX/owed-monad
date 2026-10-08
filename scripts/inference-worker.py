@@ -12,7 +12,7 @@ from urllib.error import HTTPError, URLError
 
 TOKEN = os.environ.get("OWED_WORKER_TOKEN", "")
 MODEL = os.environ.get("OWED_TEXT_MODEL", "qwen2.5:0.5b")
-WHISPER_MODEL = os.environ.get("OWED_WHISPER_MODEL", "tiny.en")
+WHISPER_MODEL = os.environ.get("OWED_WHISPER_MODEL", "base.en")
 MODEL_DIR = os.environ.get("OWED_WHISPER_CACHE", "/var/lib/owed-worker/models")
 TMP_DIR = os.environ.get("OWED_TMP_DIR", "/var/lib/owed-worker/tmp")
 LOCK = threading.Lock()

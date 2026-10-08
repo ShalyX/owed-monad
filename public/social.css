@@ -363,3 +363,7 @@ h2 em{font-weight:500;color:#ee8476}
 .transcript-review .secondary-btn{width:100%;border-radius:12px;background:#e5f1e6;color:#315f48;border:1px solid #c5dfca;min-height:44px;font-weight:800}
 .transcript-review .secondary-btn:hover{background:#d4ead7}
 @media (max-width:640px){.transcript-review{margin:4px 13px 16px;padding:14px}}
+
+.transcript-heard{background:#fffdf9;border:1px solid #e4dce9;border-left:3px solid #9673bc;border-radius:13px;margin:10px 0 16px;padding:12px 14px}
+.transcript-heard .field-label{display:block;font-size:10px;letter-spacing:1.2px;color:#8b779d;font-weight:900}
+.transcript-visible{white-space:pre-wrap;overflow-wrap:anywhere;color:#273f35;font-size:13px;line-height:1.7;margin:9px 0 1px;font-weight:600;max-height:240px;overflow-y:auto}

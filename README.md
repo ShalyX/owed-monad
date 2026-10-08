@@ -67,17 +67,17 @@ Owed was developed by adapting the broad Whisper/Gemma transcription approach fr
 **First actual payment (browser wallet):**
 1. Open `http://localhost:3000`, connect an injected browser EVM wallet (e.g. MetaMask or Rabby) and use Monad Testnet.
 2. Fund the connected address with faucet MON for gas from https://faucet.monad.xyz/ and Circle testnet USDC from https://faucet.circle.com/ (select Monad Testnet). Faucets may require user interaction.
-3. Paste a real small debt message, e.g. `You still owe me 0.01 USDC for coffee.`, and analyze with real Gemma. Do not use the nonpayable sample card.
+3. Paste a real small debt message, e.g. `You still owe me 0.01 USDC for coffee.`, and analyze with the configured inference provider (the private VPS uses Qwen2.5). Do not use the nonpayable sample card.
 4. Open Pay, supply a recipient testnet address confirmed independently by the user, check the verification box and approve the exact USDC transfer in the wallet.
 5. Wait for Owed to mark **Settled** only after it sees the exact matching ERC-20 Transfer event on a successful transaction receipt.
 6. Independently verify using `npm run verify:payment -- 0xTXHASH 0xPAYER 0xRECIPIENT 0.01`. The verifier checks Monad Testnet chain ID, the signed transaction's USDC destination and exact calldata, receipt status, and Transfer event fields before printing VERIFIED.
 
-**Current evidence:** Automated tests and the public-RPC token probe are passing. Real Whisper/Gemma inference and a funded USDC transfer are still pending local token configuration and wallet-funded signing. Never substitute synthetic responses or a mock receipt for this milestone.
+**Current evidence:** Automated tests, a live private Whisper + Qwen voice-to-obligation smoke test, and the public-RPC token probe have passed. The user reported an actual Monad Testnet USDC transfer through the app; its private transaction details are not reproduced here. Never substitute synthetic responses or a mock receipt for independently verified on-chain evidence.
 
 ## Zero-cost VPS inference (private test lane)
 
 This project supports a paid Hugging Face mode for reference, but our current working lane uses **no paid inference**:
-- `faster-whisper` with the small `tiny.en` CPU model for audio.
+- `faster-whisper` with `base.en` (int8 CPU) for better conversational speech recognition. It uses more memory than `tiny.en`; test resource limits when moving to a different VPS.
 - Ollama `qwen2.5:0.5b` for structured obligation extraction. This is NOT Gemma; it requires careful human review.
 - `scripts/inference-worker.py` listens on `127.0.0.1:18765`, requires `OWED_WORKER_TOKEN` bearer authentication, and serializes work (one request at a time). The official model server listens on `127.0.0.1:11434`. Neither port is public.
 - `scripts/install-vps-worker.sh` provisions a dedicated unprivileged user and a memory/CPU-capped systemd worker; the token is generated and stored on the VPS at `/etc/owed-inference.env`, **never in GitHub**. The VPS Ollama service also has its own CPU/memory cap in `/etc/systemd/system/ollama.service.d/owed-limits.conf`.
@@ -94,6 +94,6 @@ As of 2026-10-08, `caraxes-vps` runs two *private loopback-only* systemd service
 
 On the authorized Windows PC, double-click **`CONNECT-VPS.cmd`** to open a private SSH tunnel and the live app at **http://localhost:3001**. Browser wallets remain entirely on the PC. If the SSH tunnel closes or the PC restarts, run the shortcut again. This is a private pilot, not a public HTTPS deployment.
 
-The live synthetic smoke test is `/opt/owed-worker/node /opt/owed-app/scripts/test-vps-e2e.mjs` (run over SSH). It requires a real Qwen text response and actual Whisper transcription; the strict source-quote validation and conservative literal-debt fallback work together. Audio amounts transcribed as number words (such as "two dollars") intentionally do not unlock a payable USDC amount; human review remains required.
+The live synthetic smoke test is `/opt/owed-worker/node /opt/owed-app/scripts/test-vps-e2e.mjs` (run over SSH). It requires a real Qwen text response and actual Whisper transcription; the strict source-quote validation and conservative literal-debt fallback work together. Explicit amounts written as number words may be extracted when grounded in a direct source quote. Ambiguous amounts such as "two fifty" remain unpriced and require human correction. All extracted voice requests must be checked against the visible transcript before payment.
 
 **Still unproven:** An actual funded Circle USDC transfer from a user's browser wallet followed by an independently matched Monad receipt. The automated chain/receipt unit tests do not substitute for this.

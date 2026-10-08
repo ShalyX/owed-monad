@@ -73,6 +73,7 @@ function showTranscriptReview(transcript, perspective="incoming") {
   if (!transcript?.trim()) return;
   state.lastVoicePerspective = perspective;
   $("transcriptText").value = transcript.slice(0,12000);
+  $("transcriptVisible").textContent = transcript.slice(0,12000);
   $("transcriptReview").classList.remove("hidden");
 }
 function addGroup(group) {
@@ -116,8 +117,13 @@ async function analyzeAudio(file, context = "incoming", capture = "import") {
     const result = await response.json();
     if (result.transcript) showTranscriptReview(result.transcript, context);
     if (!response.ok) throw new Error(result.error || "Audio analysis failed.");
-    if (result.obligations?.length) addGroup(result);
-    else showNotice("No clear request found in the audio. Review what Owed heard below, and correct any missed words.");
+    if (result.obligations?.length) {
+      addGroup(result);
+      showNotice("We found " + result.obligations.length + " possible obligation(s). Compare each quote with what Owed heard before acting.");
+    } else {
+      showNotice("Speech was recognized, but no obligation was confirmed. Read the recognized words below—this is NOT proof that the recording contains no request.");
+      $("transcriptReview").scrollIntoView({block:"nearest",behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"instant":"smooth"});
+    }
   } catch (e) { showNotice(e.message, true); }
   finally { setProcessing(false); }
 }

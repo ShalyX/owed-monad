@@ -2,6 +2,7 @@ import { CHAIN, isAddress, microUsdc, transferData, receiptMatches, switchToMona
 import { completeTask, dismissMoney, reopenDismissed, restoreLegacyMoney, clearFinishedTasks } from "./actions.js";
 import { makeReceiptProof } from "./receipt.js";
 import { avatarSvg, friendScene } from "./characters.js";
+import { showSettlementMoment } from "./delight.js";
 
 const $ = (id) => document.getElementById(id);
 const KEY = "owed-v1-inbox";
@@ -316,7 +317,9 @@ async function checkReceiptFor(x, loud = true) {
       return false;
     }
     if (receiptMatches(receipt, x.payer, x.recipientAddress, x.amount)) {
+      const wasPending = x.status === "pending";
       x.status = "settled"; x.settledAt = new Date().toISOString(); save(); render();
+      if (wasPending) showSettlementMoment(() => openReceipt(x.id));
       if (loud) showNotice("Payment settled. Exact USDC Transfer event verified against the onchain receipt.");
       return true;
     }

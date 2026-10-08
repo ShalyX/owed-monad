@@ -194,3 +194,15 @@ h2 em{font-weight:500;color:#ee8476}
  .pay-dialog{box-shadow:none}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.obligation,.cast-member,.scene-sticker,.empty-confetti,.empty-heart,.receipt-seal.verified{animation:none!important;transition:none!important;translate:none!important}.obligation:hover,.metric:hover{transform:none}}
+
+/* The little moment when a real on-chain payment gets its matching receipt */
+.settlement-moment{position:fixed;right:25px;bottom:24px;z-index:100;background:#fffef9;border:1px solid #a5d5b5;border-radius:20px;padding:17px 16px;display:flex;align-items:center;gap:12px;width:min(420px,calc(100% - 30px));box-shadow:0 14px 48px #163b2b30;animation:moment-in .5s cubic-bezier(.18,.88,.23,1.3) both}
+.settlement-moment::before,.settlement-moment::after{content:"✦";position:absolute;font-size:20px;color:#f9b952;pointer-events:none;animation:sticker-sway 2.3s infinite}
+.settlement-moment::before{top:-19px;left:15px}.settlement-moment::after{top:-16px;right:48px;color:#f58d83;animation-delay:-1s}
+.settlement-stamp{background:#2d7452;color:white;width:45px;height:45px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;font-weight:900;font-size:23px;box-shadow:0 0 0 6px #ddf2e2}
+.settlement-words{flex:1;min-width:0}.settlement-words strong{font-family:Georgia,serif;font-size:21px;letter-spacing:-.04em}.settlement-words p{margin:4px 0 0;font-size:11px;line-height:1.5;color:#748475}
+.settlement-receipt-button{border:0;border-radius:10px;background:#e2f4e4;padding:10px 11px;font-size:11px;font-weight:800;color:#285d45}.settlement-receipt-button:hover{background:#c7eacb}
+.settlement-dismiss{border:0;background:transparent;position:absolute;right:8px;top:3px;color:#879b89;font-size:20px}
+@keyframes moment-in{from{opacity:0;transform:translateY(30px) scale(.86)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:640px){.settlement-moment{right:15px;bottom:17px;padding:15px 12px}.settlement-words strong{font-size:19px}}
+@media(prefers-reduced-motion:reduce){.settlement-moment,.settlement-moment::before,.settlement-moment::after{animation:none}}

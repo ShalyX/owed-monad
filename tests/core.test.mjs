@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { makeServer } from "../server.mjs";
 import { cleanAnalysis } from "../lib/obligations.mjs";
-import { completeTask, dismissMoney, reopenDismissed, restoreLegacyMoney } from "../public/actions.js";
+import { completeTask, dismissMoney, reopenDismissed, restoreLegacyMoney, clearFinishedTasks } from "../public/actions.js";
 import { CHAIN, microUsdc, transferData, receiptMatches, getWalletBalances, switchToMonad } from "../public/payments.js";
 
 const FROM = "0x" + "1".repeat(40);
@@ -47,6 +47,16 @@ test("money can only be dismissed or verified onchain, never manually completed"
     assert.equal(item.status, status);
   }
   assert.equal(dismissMoney({kind:"money",status:"open",txHash:"0xabc"}), false);
+});
+test("clearing finished tasks preserves previously verified payment receipts", () => {
+  const receipt = {kind:"money",status:"settled",txHash:"0x"+"a".repeat(64)};
+  const openMoney = {kind:"money",status:"open",amount:2};
+  const finishedTask = {kind:"task",status:"done"};
+  const groups=[{id:"a",obligations:[receipt,finishedTask,openMoney]},{id:"b",obligations:[finishedTask]}];
+  const after=clearFinishedTasks(groups);
+  assert.deepEqual(after.map(g=>g.id),["a"]);
+  assert.deepEqual(after[0].obligations,[receipt,openMoney]);
+  assert.equal(groups[0].obligations.length,3);
 });
 test("legacy money marked done without a wallet payment reopens safely", () => {
   const groups = [{obligations:[

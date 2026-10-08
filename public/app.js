@@ -1,11 +1,13 @@
 import { CHAIN, isAddress, microUsdc, transferData, receiptMatches, switchToMonad, readReceipt, getWalletBalances } from "./payments.js";
-import { completeTask, dismissMoney, reopenDismissed, restoreLegacyMoney } from "./actions.js";
+import { completeTask, dismissMoney, reopenDismissed, restoreLegacyMoney, clearFinishedTasks } from "./actions.js";
 import { makeReceiptProof } from "./receipt.js";
+import { avatarSvg, friendScene } from "./characters.js";
 
 const $ = (id) => document.getElementById(id);
 const KEY = "owed-v1-inbox";
 let restoredLegacyMoneyCount = 0;
 const state = { groups: load(), filter: "all", file: null, recorded: null, recorder: null, chunks: [], timer: null, startedAt: 0, processing: false, paymentId: null, receiptId: null, receiptEpoch: 0, wallet: "" };
+$("friendStage").innerHTML = friendScene();
 const SAMPLE_TEXT = "Hey, you still owe me $12 for the cab and $6 for lunch. Also, can you send me that venue address? I'll send you the photos tomorrow.";
 function load() {
   try {
@@ -49,8 +51,8 @@ function addGroup(group) {
   save();
   render();
   showNotice(group.obligations.length
-    ? "Added " + group.obligations.length + " obligation(s). Review before taking any action."
-    : "Analyzed. No explicit obligations found in this conversation.");
+    ? "✦ Found " + group.obligations.length + (group.obligations.length === 1 ? " little thing" : " little things") + " worth remembering. Check the evidence before taking action."
+    : "All clear! No explicit obligations in that conversation.");
 }
 async function analyzeText() {
   const text = $("conversation").value.trim();
@@ -85,39 +87,63 @@ function category(x) {
   if (x.kind === "money") return "Uncertain amount";
   return "To-do";
 }
-function itemMarkup(x) {
-  const done = x.status === "settled" || x.status === "done";
+function momentIcon(x) {
+  const name = (x.title || "").toLowerCase();
+  if (/coffee|latte|tea|cafe/.test(name)) return "☕";
+  if (/lunch|dinner|food|pizza|restaurant/.test(name)) return "🍕";
+  if (/ticket|concert|show|gig|event/.test(name)) return "🎟";
+  if (/trip|travel|flight|cab|ride|uber/.test(name)) return "✈";
+  if (/grocery|groceries|shopping|supplies/.test(name)) return "🛒";
+  if (/link|address|message|reply|email/.test(name)) return "💌";
+  return x.kind === "money" ? "💸" : "✦";
+}
+function statusFor(x) {
+  if (x.status === "settled" && /^0x[a-f\d]{64}$/i.test(x.txHash || "")) return ["verified","✓ Verified onchain"];
+  if (x.status === "settled") return ["review","Receipt needs review"];
+  if (x.status === "pending") return ["pending","⏳ Verifying"];
+  if (x.status === "dismissed") return ["dismissed","Dismissed · not paid"];
+  if (x.status === "done" && x.kind === "task") return ["completed","✓ Task done"];
+  if (x.status === "failed") return ["review","Try again"];
+  if (x.kind === "money" && x.direction !== "i_owe") return ["review",x.direction === "owed_to_me" ? "Owed to you" : "Review"];
+  return ["open",x.kind === "money" ? "Still open" : "To do"];
+}
+function itemMarkup(x,i=0) {
   const payout = x.kind === "money" && x.direction === "i_owe" && x.amount !== null;
   const sample = !!x.group.isSample;
+  const [statusKey,statusLabel] = statusFor(x);
+  const actionId = escapeHTML(x.id);
   let controls = "";
   if (x.status === "pending") {
-    controls = '<button class="small-btn" data-action="check" data-id="' + escapeHTML(x.id) + '">Check transaction ↗</button>';
-  } else if (x.status === "settled" && x.txHash) {
-    controls = '<button class="small-btn solid" data-action="receipt" data-id="' + escapeHTML(x.id) + '">View receipt ↗</button>';
+    controls = '<button class="small-btn" data-action="check" data-id="' + actionId + '">↻ Check payment</button>';
+  } else if (x.status === "settled" && /^0x[a-f\d]{64}$/i.test(x.txHash || "")) {
+    controls = '<button class="small-btn solid" data-action="receipt" data-id="' + actionId + '">View receipt <span>↗</span></button>';
   } else if (x.status === "dismissed") {
-    controls = '<span class="status-text">Dismissed · no payment</span> <button class="small-btn" data-action="reopen" data-id="' + escapeHTML(x.id) + '">Reopen ↗</button>';
-  } else if (done) {
-    controls = '<span class="status-text done">' + (x.kind === "money" ? "✓ Verified onchain" : "✓ Task completed") + '</span>';
+    controls = '<button class="small-btn" data-action="reopen" data-id="' + actionId + '">↶ Reopen</button>';
+  } else if (x.status === "done" || x.status === "settled") {
+    controls = '<span class="status-text">' + (x.kind === "money" ? "Receipt needs review" : "All sorted ✦") + '</span>';
   } else if (payout) {
     controls = sample
-      ? '<span class="sample-tag">Example · not payable</span>'
-      : '<button class="small-btn solid" data-action="pay" data-id="' + escapeHTML(x.id) + '">Pay in USDC ↗</button> <button class="small-btn" data-action="dismiss" data-id="' + escapeHTML(x.id) + '">Dismiss · no payment</button>';
+      ? '<span class="sample-tag">✦ Example only · not payable</span>'
+      : '<button class="small-btn solid" data-action="pay" data-id="' + actionId + '">Pay in USDC <span>↗</span></button><button class="small-btn ghost" data-action="dismiss" data-id="' + actionId + '">Dismiss · no payment</button>';
   } else if (x.kind === "task") {
-    controls = '<button class="small-btn" data-action="complete" data-id="' + escapeHTML(x.id) + '">Mark complete ✓</button>';
+    controls = '<button class="small-btn solid" data-action="complete" data-id="' + actionId + '">Mark it done ✓</button>';
   } else {
-    controls = '<button class="small-btn" data-action="dismiss" data-id="' + escapeHTML(x.id) + '">Dismiss · no payment</button>';
+    controls = '<button class="small-btn ghost" data-action="dismiss" data-id="' + actionId + '">Dismiss · no payment</button>';
   }
-  const price = x.kind === "money" && x.amount !== null ? '<strong class="item-price">' + money(x.amount) + '</strong>' : "";
-  const status = x.status === "pending" ? '<span class="status-text pending">Pending chain receipt</span>'
-    : x.status === "failed" ? '<span class="status-text warning">Previous transaction failed</span>'
-    : x.status === "done" ? '<span class="status-text done">Task completed</span>'
-    : x.status === "dismissed" ? '<span class="status-text">No wallet transaction occurred</span>' : "";
-  return '<article class="obligation"><div class="obligation-head"><div><div class="item-category"><span class="mini-tag">' +
-    escapeHTML(category(x)) + '</span>' + (sample ? '<span class="sample-tag">SAMPLE</span>' : "") +
-    '</div><div class="item-title">' + escapeHTML(x.title) + '</div></div>' + price + '</div><p class="item-evidence">“' +
-    escapeHTML(x.evidence) + '”</p><div class="item-actions"><span class="item-source">' +
-    escapeHTML(x.group.title) + ' · ' + escapeHTML(x.group.source === "audio" ? "voice note" : "text") +
-    '</span>' + controls + '</div>' + (status ? '<div class="status-row">' + status + '</div>' : '') + '</article>';
+  const price = x.kind === "money" && x.amount != null ? '<strong class="item-price">' + money(x.amount) + '</strong>' : "";
+  const meta = x.group.source === "audio" ? "Voice note" : x.group.source === "recording" ? "Your recording" : "Message";
+  const avatar = avatarSvg(x.group.id || x.group.fingerprint || x.group.title);
+  const source = escapeHTML(x.group.title || "Your conversation");
+  const statusSummary = x.status === "dismissed" ? '<p class="outcome-note">No USDC payment was made for this item.</p>' : "";
+  return '<article class="obligation status-'+statusKey+'" style="--i:'+Math.min(i,15)+'">'+
+    '<div class="card-top"><div class="item-icon" aria-hidden="true">'+momentIcon(x)+'</div><div class="card-titles"><div class="item-title">'+escapeHTML(x.title)+'</div>'+
+    '<div class="card-meta">'+escapeHTML(meta)+' · '+source+'</div></div><div class="card-amount">'+price+
+    '<span class="state-pill '+statusKey+'">'+escapeHTML(statusLabel)+'</span></div></div>'+
+    '<div class="card-story"><div class="small-avatar">'+avatar+'</div><div class="story-copy"><span class="story-label">FROM YOUR CONVERSATION</span>'+
+    '<p class="item-evidence">“'+escapeHTML(x.evidence)+'”</p></div><span class="story-spark" aria-hidden="true">✧</span></div>'+
+    '<div class="card-bottom"><div class="item-category"><span class="kind-dot"></span>'+escapeHTML(category(x))+
+    (sample ? ' <span class="sample-tag">EXAMPLE</span>' : '')+'</div><div class="item-actions">'+controls+'</div></div>'+
+    statusSummary+'</article>';
 }
 function render() {
   const all = allItems();
@@ -126,12 +152,14 @@ function render() {
   $("openCount").textContent = String(active.length).padStart(2, "0");
   $("moneyCount").textContent = money(openMoney.reduce((s, x) => s + x.amount, 0));
   $("doneCount").textContent = String(all.filter((x) => x.status === "settled" || (x.kind === "task" && x.status === "done")).length).padStart(2, "0");
-  const shown = all.filter((x) => state.filter === "all" || x.kind === state.filter);
+  const shown = all.filter((x) => state.filter === "all" || (state.filter === "settled" ? x.kind === "money" && x.status === "settled" : x.kind === state.filter));
+  $("inboxSummary").textContent = state.filter === "settled" ? "YOUR RECEIPTS" : shown.length + (shown.length === 1 ? " MOMENT" : " MOMENTS");
   const inbox = $("inbox");
+  const emptyTitle = state.filter === "settled" ? "No receipts yet!" : all.length ? "Nothing in this filter ✳" : "All clear, for now!";
+  const emptyBody = state.filter === "settled" ? "Verified Monad payments will appear here. Dismissed items are never counted as paid." : all.length ? "Try another filter, or add another moment." : "Drop in a chat, upload a voice note or record a reminder. We'll find the little things worth remembering.";
   inbox.innerHTML = shown.length ? shown.map(itemMarkup).join("") :
-    '<div class="empty"><div class="empty-mark">↗</div><h3>' + (all.length ? 'Nothing in this filter' : 'Nothing left hanging. Yet.') +
-    '</h3><p>' + (all.length ? 'Try another filter or add a conversation.' : 'Paste a message, record a reminder or import a voice note to start finding the loose ends.') +
-    '</p></div>';
+    '<div class="empty"><div class="empty-art"><span class="empty-face">'+avatarSvg("empty-inbox")+'</span><span class="empty-confetti">✦</span><span class="empty-heart">♥</span></div><h3>' + emptyTitle +
+    '</h3><p>' + emptyBody + '</p><a class="empty-cta" href="#capture">Add a moment ↗</a></div>';
   document.querySelectorAll(".filter").forEach((b) => b.classList.toggle("active", b.dataset.filter === state.filter));
 }
 function setMode(mode) {
@@ -361,8 +389,8 @@ function wireEvents() {
   $("demoBtn").addEventListener("click", sample);
   $("walletBtn").addEventListener("click", () => connectWallet().catch((e) => showNotice(e.message, true)));
   $("clearCompleted").addEventListener("click", () => {
-    if (!window.confirm("Remove completed obligations from this browser's inbox?")) return;
-    state.groups = state.groups.map((g) => ({ ...g, obligations: g.obligations.filter((x) => !["done", "settled"].includes(x.status)) })).filter((g) => g.obligations.length);
+    if (!window.confirm("Remove finished non-payment tasks from this browser? Your verified USDC payments and receipts will be kept.")) return;
+    state.groups = clearFinishedTasks(state.groups);
     save(); render();
   });
   document.querySelectorAll(".filter").forEach((b) => b.addEventListener("click", () => { state.filter = b.dataset.filter; render(); }));

@@ -3,35 +3,38 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#edece7">
+<meta name="theme-color" content="#fff9f2">
 <meta name="description" content="Owed turns conversations into things you can actually complete — including verified Monad payments.">
-<title>Owed — From conversation to completion</title>
+<title>Owed — Same friends, clearer plans</title>
 <link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/social.css">
 </head>
 <body>
 <div class="app-shell">
   <header class="topbar">
-    <a class="logo" href="/" aria-label="Owed home"><span class="logo-glyph">o<span class="logo-dot"></span></span><span>owed<span class="brand-period">.</span></span></a>
-    <div class="header-center"><span class="pulse"></span> FROM CONVERSATION TO COMPLETION</div>
-    <div class="head-actions"><span class="network">◈ MONAD TESTNET</span><button id="walletBtn" class="wallet-btn" type="button">Connect wallet <span>↗</span></button></div>
+    <a class="logo" href="/" aria-label="Owed home"><span class="logo-glyph">o<span class="logo-dot"></span></span><span>owed<span class="brand-period">.</span></span><span class="brand-spark" aria-hidden="true">✳</span></a>
+    <nav class="header-center" aria-label="Main navigation"><a href="#capture">Add a moment</a><a href="#my-inbox">Your inbox</a><span class="nav-heart" aria-hidden="true">♥</span></nav>
+    <div class="head-actions"><span class="network"><span class="network-dot"></span> MONAD TESTNET</span><button id="walletBtn" class="wallet-btn" type="button">Connect wallet <span>↗</span></button></div>
   </header>
   <main class="workspace">
-    <section class="left-panel">
-      <div class="eyebrow"><span class="eyebrow-dot"></span> THE THINGS YOU SAID YOU'D DO</div>
-      <h1>Your conversations<br>leave <em>loose ends.</em></h1>
-      <p class="intro">Money you owe. Plans you made. That link you promised to send. Owed catches the details and helps you follow through.</p>
+    <section class="left-panel" id="capture">
+      <div class="hero-top"><span class="eyebrow"><span class="eyebrow-dot"></span> THE LITTLE THINGS BETWEEN US</span><span class="hero-doodle" aria-hidden="true">✷ ♥</span></div>
+      <h1>Good friends.<br><em>Clearer plans.</em><span class="hero-dot">✴</span></h1>
+      <p class="intro">The group chat made plans. Someone covered coffee. You promised a link. <strong>Owed keeps the little things from getting lost.</strong></p>
+      <div class="friend-stage" id="friendStage" aria-label="Illustrated friends"></div>
+      <div class="stage-note"><span class="hand-heart" aria-hidden="true">♡</span><span>Same people. Less awkwardness.<br><strong>More good times.</strong></span><span class="stage-smile" aria-hidden="true">✳</span></div>
       <div class="capture">
-        <div class="capture-heading"><span>01 / CAPTURE</span><span class="capture-sub">CHOOSE A STARTING POINT</span></div>
+        <div class="capture-heading"><span>✷  ADD A MOMENT</span><span class="capture-sub">MESSAGES → CLARITY</span></div>
         <div class="capture-tabs" role="tablist" aria-label="Add a conversation">
           <button role="tab" class="tab active" data-mode="paste" aria-selected="true"><span class="tab-icon">▤</span> Paste</button>
           <button role="tab" class="tab" data-mode="record" aria-selected="false"><span class="tab-icon">◉</span> Record</button>
           <button role="tab" class="tab" data-mode="import" aria-selected="false"><span class="tab-icon">↥</span> Import</button>
         </div>
         <div class="capture-body" id="pastePanel">
-          <label for="conversation" class="field-label">DROP IN THE CONVERSATION</label>
+          <label for="conversation" class="field-label">WHAT DID THE CHAT SAY?</label>
           <textarea id="conversation" maxlength="12000" placeholder="“Hey, you still owe me $12 for the cab and $6 for lunch. Also, can you send me that venue address?”"></textarea>
           <div class="input-foot"><span>Text from anywhere, kept in your browser</span><span id="charCount">0 / 12,000</span></div>
-          <button class="action-btn" type="button" id="analyzeText">Find what I owe <span>↗</span></button>
+          <button class="action-btn" type="button" id="analyzeText">Find the loose ends <span>✦</span></button>
         </div>
         <div class="capture-body hidden" id="recordPanel">
           <p class="record-helper">Record a conversation or speak a reminder. Your browser will ask for microphone access.</p>
@@ -47,17 +50,17 @@
         </div>
         <p id="notice" class="notice hidden" role="status" aria-live="polite"></p>
       </div>
-      <div class="lower-left"><span>PRIVATE BY DESIGN</span><p>Audio and text are analyzed on your private VPS through an SSH connection. Owed doesn't keep a server-side inbox; your obligations live in this browser until you clear its storage.</p><button class="link-btn" type="button" id="demoBtn">Try a clearly labeled example <span>↗</span></button></div>
+      <div class="lower-left"><div class="privacy-icon" aria-hidden="true">♥</div><div><span>JUST BETWEEN YOU AND YOUR BROWSER</span><p>Your conversations are analyzed on the connected private server; saved obligations stay in this browser. No automatic payments, ever.</p><button class="link-btn" type="button" id="demoBtn">✦ Take a peek with example messages <span>↗</span></button></div></div>
     </section>
-    <section class="right-panel">
-      <div class="inbox-head"><div><span class="section-number">02 / THE FOLLOW-THROUGH</span><h2>Your obligations<span class="asterisk">✳</span></h2></div><button class="clear-btn" type="button" id="clearCompleted">Clear completed</button></div>
-      <div class="metrics"><div class="metric"><span>STILL OPEN</span><strong id="openCount">00</strong></div><div class="metric"><span>TO SETTLE</span><strong id="moneyCount">$0.00</strong></div><div class="metric"><span>COMPLETED</span><strong id="doneCount">00</strong></div></div>
-      <div class="inbox-controls"><span>YOUR INBOX</span><div class="filters"><button type="button" data-filter="all" class="filter active">All</button><button type="button" data-filter="money" class="filter">Money</button><button type="button" data-filter="task" class="filter">To-dos</button></div></div>
+    <section class="right-panel" id="my-inbox">
+      <div class="inbox-head"><div><span class="section-number">YOUR LITTLE CORNER <span class="inbox-star" aria-hidden="true">✳</span></span><h2>Things to <em>sort out.</em></h2><p class="inbox-subtitle">All the good stuff, without the “wait, who owes who?”</p></div><button class="clear-btn" type="button" id="clearCompleted">Clear finished to-dos</button></div>
+      <div class="metrics"><div class="metric metric-open"><span>STILL OPEN <i aria-hidden="true">✷</i></span><strong id="openCount">00</strong><small>On your mind</small></div><div class="metric metric-money"><span>YOU OWE <i aria-hidden="true">✳</i></span><strong id="moneyCount">$0.00</strong><small>Ready to settle</small></div><div class="metric metric-done"><span>WRAPPED UP <i aria-hidden="true">♥</i></span><strong id="doneCount">00</strong><small>Nice work!</small></div></div>
+      <div class="inbox-controls"><span>YOUR INBOX <span class="inbox-count-label" id="inboxSummary">ALL MOMENTS</span></span><div class="filters"><button type="button" data-filter="all" class="filter active">All</button><button type="button" data-filter="money" class="filter">Money</button><button type="button" data-filter="task" class="filter">To-dos</button><button type="button" data-filter="settled" class="filter">Receipts</button></div></div>
       <div id="inbox" class="inbox" aria-live="polite"></div>
-      <footer class="inbox-footer"><span>AI suggests. YOU decide.</span><span>Only verified USDC transfers count as paid.</span></footer>
+      <footer class="inbox-footer"><span>✳ Owed helps you remember. You decide what happens.</span><span>Only verified transfers count as paid.</span></footer>
     </section>
   </main>
-  <footer class="page-footer"><span>OWED / A BETTER WAY TO FOLLOW THROUGH</span><span>Built on Monad · Whisper + Qwen2.5</span></footer>
+  <footer class="page-footer"><span>made for the moments between us <span aria-hidden="true">♡</span></span><span>Powered by Monad Testnet · Whisper + Qwen2.5</span></footer>
 </div>
 <dialog id="payDialog" class="pay-dialog">
   <form method="dialog"><button aria-label="Close" class="close-dialog" value="cancel">×</button></form>

@@ -45,3 +45,7 @@ export function restoreLegacyMoney(groups) {
   }
   return restored;
 }
+
+export function clearFinishedTasks(groups) {
+  return groups.map((group) => ({...group, obligations: (group.obligations || []).filter((item) => !(item.kind === "task" && item.status === "done"))})).filter((group) => group.obligations.length > 0);
+}

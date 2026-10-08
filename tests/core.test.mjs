@@ -24,7 +24,7 @@ test("source evidence and wallet authority are enforced", () => {
   const f = fixture(); f.obligations[0].amount = 1200; f.obligations[1].evidence = "invented";
   const bad = cleanAnalysis(f, TEXT);
   assert.equal(bad.obligations.length, 2);
-  assert.equal(bad.obligations[0].amount, null);
+  assert.equal(bad.obligations[0].amount, 12); // recovered from an exact source quote, never the hallucinated 1200
 });
 test("money direction is derived from the exact quote, not a small model guess", () => {
   const item = (evidence) => ({obligations:[{title:"Payment",kind:"money",direction:"i_owe",amount:8,evidence}]});
@@ -36,6 +36,18 @@ test("money direction is derived from the exact quote, not a small model guess",
   assert.equal(certain.obligations[0].direction, "i_owe");
   const recording = cleanAnalysis(item("I owe you $8"), "I owe you $8", "text", "recording");
   assert.equal(recording.obligations[0].direction, "i_owe");
+});
+test("explicit debt fallback is source-grounded and excludes hypothetical amounts", () => {
+  const empty = () => ({title:"Message",obligations:[]});
+  const bill = cleanAnalysis(empty(), "Hey, you still owe me $2 for coffee.");
+  assert.equal(bill.obligations.length, 1);
+  assert.equal(bill.obligations[0].amount, 2);
+  assert.equal(bill.obligations[0].direction, "i_owe");
+  assert.equal(bill.obligations[0].recipientAddress, "");
+  const reverse = cleanAnalysis(empty(), "I owe you $8 for tickets.");
+  assert.equal(reverse.obligations[0].direction, "owed_to_me");
+  assert.equal(cleanAnalysis(empty(), "If you owe me $8, tell me.").obligations.length, 0);
+  assert.equal(cleanAnalysis(empty(), "The cab cost $20 yesterday.").obligations.length, 0);
 });
 test("transfer amount, calldata and recipient match expected USDC encoding", () => {
   assert.equal(microUsdc("12.50"), 12500000n);

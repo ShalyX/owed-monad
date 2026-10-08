@@ -102,7 +102,7 @@ test("money direction is derived from the exact quote, not a small model guess",
   const recording = cleanAnalysis(item("I owe you $8"), "I owe you $8", "text", "recording");
   assert.equal(recording.obligations[0].direction, "i_owe");
   const hypothetical = cleanAnalysis(item("you owe me $8"), "If you owe me $8, let me know.");
-  assert.equal(hypothetical.obligations[0].direction, "unclear");
+  assert.equal(hypothetical.obligations.length, 0); // conditional/hypothetical money must never appear as payable
 });
 test("explicit debt fallback is source-grounded and excludes hypothetical amounts", () => {
   const empty = () => ({title:"Message",obligations:[]});

@@ -393,3 +393,7 @@ h2 em{font-weight:500;color:#ee8476}
 .pay-dialog{max-height:92dvh;overflow-y:auto;overscroll-behavior:contain}
 .source-address-list{max-height:230px;overflow-y:auto}
 @media(max-width:600px){.pay-dialog{max-height:92dvh}.source-address-list{max-height:165px}}
+
+/* Context is inline with the source quote; no new type or inbox filter. */
+.financial-context-note{font-size:11px;line-height:1.6;color:#5f755e;background:#edf4e5;border:1px solid #d7e7cf;border-radius:11px;padding:9px 12px;margin:9px 0 0}
+.obligation.status-review .financial-context-note{color:#805a33;background:#fdf0df;border-color:#ead7ba}

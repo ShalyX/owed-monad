@@ -215,6 +215,22 @@ try{
  console.log("NO_ADDRESS_NOT_GUESSED="+JSON.stringify(absent));
  if(absent.value||!absent.panelHidden||absent.verified)throw Error("Missing addresses must remain blank");
  await js("document.querySelector('#payDialog').close();true");
+ // Legacy financial context: a past model might have saved a conditional
+ // payment as a payable money item. The new guard removes the payment action
+ // without deleting history, changing a receipt, or touching any wallet.
+ const conditionalFixture=[{id:"conditional-group",title:"Ticket promise",source:"text",fingerprint:"conditional-browser",transcript:"You owe me $20 if you get the tickets.",obligations:[
+   {id:"conditional-money",kind:"money",title:"Ticket payment",direction:"i_owe",status:"open",evidence:"You owe me $20 if you get the tickets.",amount:20,recipientAddress:"",txHash:""}
+ ]}];
+ await js("localStorage.setItem('owed-v1-inbox',"+JSON.stringify(JSON.stringify(conditionalFixture))+");location.reload();true");
+ await sleep(420);
+ for(let i=0;i<30;i++){if(await js("!!document.querySelector('[data-item-id=conditional-money]')"))break;await sleep(120)}
+ const conditionalUI=await js("({payButton:!!document.querySelector('button[data-action=pay][data-id=conditional-money]'),label:document.querySelector('[data-item-id=conditional-money] .state-pill')?.textContent,explanation:document.querySelector('[data-item-id=conditional-money] .financial-context-note')?.textContent,moneyTotal:document.querySelector('#moneyCount')?.textContent})");
+ console.log("LEGACY_CONDITIONAL_GUARD="+JSON.stringify(conditionalUI));
+ if(conditionalUI.payButton||!conditionalUI.label.includes("Review before paying")||!conditionalUI.explanation.includes("condition")||conditionalUI.moneyTotal!=="$0.00")throw Error("Previously saved conditional item remains payable");
+ await js("(()=>{const b=document.createElement('button');b.dataset.action='pay';b.dataset.id='conditional-money';b.id='unsafe-attempt';document.getElementById('inbox').append(b);b.click();return true})()");
+ const illegalPay=await js("({dialog:document.querySelector('#payDialog').open,notice:document.querySelector('#notice').textContent})");
+ console.log("PAY_DIALOG_SECOND_GUARD="+JSON.stringify(illegalPay));
+ if(illegalPay.dialog||!illegalPay.notice.includes("condition"))throw Error("Payment dialog bypassed financial context guard");
  if(errors.length)throw Error("Browser exceptions: "+errors.join("; "));
  console.log("PASS_BROWSER_TASK_MONEY_UNDO_DISCOVERY_MOBILE_REDUCED_MOTION");
 }catch(e){failures++;console.log("BROWSER_QA_FAILURE="+e.message)}

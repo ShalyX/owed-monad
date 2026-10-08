@@ -6,6 +6,7 @@ import { showSettlementMoment } from "./delight.js";
 import { showDiscoveryMoment } from "./discovery.js";
 import { showActionMoment } from "./moments.js";
 import { removeShadowPaymentTasks } from "./obligation-dedupe.js";
+import { legacyPaymentWarning } from "./financial-context.js";
 import { findSourceAddresses } from "./address-hints.js";
 
 const $ = (id) => document.getElementById(id);
@@ -108,7 +109,7 @@ async function analyzeText(perspective = "incoming", transcriptOverride = null) 
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Analysis failed.");
     if (result.obligations?.length) addGroup(result);
-    else showNotice("No clear obligation found. Review the words and speaker context before treating this as all clear.");
+    else showNotice(result.analysisNote || "No clear obligation found. Review the words and speaker context before treating this as all clear.");
   } catch (e) { showNotice(e.message, true); }
   finally { setProcessing(false); }
 }
@@ -130,7 +131,7 @@ async function analyzeAudio(file, context = "incoming", capture = "import") {
       addGroup(result);
       showNotice("We found " + result.obligations.length + " possible obligation(s). Compare each quote with what Owed heard before acting.");
     } else {
-      showNotice("Speech was recognized, but no obligation was confirmed. Read the recognized words below—this is NOT proof that the recording contains no request.");
+      showNotice((result.analysisNote ? result.analysisNote + " " : "") + "Speech was recognized, but no obligation was confirmed. Check the words before treating this as all clear.");
       $("transcriptReview").scrollIntoView({block:"nearest",behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"instant":"smooth"});
     }
   } catch (e) { showNotice(e.message, true); }
@@ -163,9 +164,12 @@ function statusFor(x) {
   return ["open",x.kind === "money" ? "Still open" : "To do"];
 }
 function itemMarkup(x,i=0) {
-  const payout = x.kind === "money" && x.direction === "i_owe" && x.amount !== null;
+  const reviewWarning = x.kind === "money" && ["open","failed"].includes(x.status)
+    ? legacyPaymentWarning(x,x.group?.transcript || "") : null;
+  const payout = x.kind === "money" && x.direction === "i_owe" && x.amount !== null && !reviewWarning;
   const sample = !!x.group.isSample;
-  const [statusKey,statusLabel] = statusFor(x);
+  const [baseStatus,baseLabel] = statusFor(x);
+  const [statusKey,statusLabel] = reviewWarning ? ["review","Review before paying"] : [baseStatus,baseLabel];
   const actionId = escapeHTML(x.id);
   let controls = "";
   if (x.status === "pending") {
@@ -194,12 +198,14 @@ function itemMarkup(x,i=0) {
   const evidenceLabel = x.group.source === "audio" || x.group.source === "recording"
     ? "FROM THE TRANSCRIPT · CHECK THE WORDS" : "FROM YOUR CONVERSATION";
   const statusSummary = x.status === "dismissed" ? '<p class="outcome-note">No USDC payment was made for this item.</p>' : "";
+  const contextMessage = reviewWarning || x.contextNote || "";
+  const contextMarkup = contextMessage ? '<p class="financial-context-note">'+escapeHTML(contextMessage)+'</p>' : "";
   return '<article class="obligation status-'+statusKey+'" data-item-id="'+actionId+'" tabindex="-1" style="--i:'+Math.min(i,15)+'">'+
     '<div class="card-top"><div class="item-icon" aria-hidden="true">'+momentIcon(x)+'</div><div class="card-titles"><div class="item-title">'+escapeHTML(x.title)+'</div>'+
     '<div class="card-meta">'+escapeHTML(meta)+' · '+source+'</div></div><div class="card-amount">'+price+
     '<span class="state-pill '+statusKey+'">'+escapeHTML(statusLabel)+'</span></div></div>'+
     '<div class="card-story"><div class="small-avatar">'+avatar+'</div><div class="story-copy"><span class="story-label">'+escapeHTML(evidenceLabel)+'</span>'+
-    '<p class="item-evidence">“'+escapeHTML(x.evidence)+'”</p></div><span class="story-spark" aria-hidden="true">✧</span></div>'+
+    '<p class="item-evidence">“'+escapeHTML(x.evidence)+'”</p>'+contextMarkup+'</div><span class="story-spark" aria-hidden="true">✧</span></div>'+
     '<div class="card-bottom"><div class="item-category"><span class="kind-dot"></span>'+escapeHTML(category(x))+
     (sample ? ' <span class="sample-tag">EXAMPLE</span>' : '')+'</div><div class="item-actions">'+controls+'</div></div>'+
     statusSummary+'</article>';
@@ -234,7 +240,7 @@ function updateMetric(id, value) {
 function render() {
   const all = allItems();
   const active = all.filter((x) => !["settled", "done", "dismissed"].includes(x.status));
-  const openMoney = active.filter((x) => x.kind === "money" && x.direction === "i_owe" && x.amount != null && !x.group.isSample);
+  const openMoney = active.filter((x) => x.kind === "money" && x.direction === "i_owe" && x.amount != null && !x.group.isSample && !legacyPaymentWarning(x,x.group?.transcript || ""));
   updateMetric("openCount", String(active.length).padStart(2, "0"));
   $("dockCount").textContent = String(active.length);
   $("dockCount").setAttribute("aria-label", active.length + (active.length === 1 ? " open item" : " open items"));
@@ -361,6 +367,8 @@ function payDialog(id) {
   if (!x || x.kind !== "money" || x.direction !== "i_owe" || x.amount === null || !["open", "failed"].includes(x.status)) return;
   const sourceGroup = state.groups.find((g) => g.obligations?.some((o) => o.id === id));
   if (sourceGroup?.isSample) return showNotice("Sample obligations cannot be paid. Analyze your own conversation first.", true);
+  const contextWarning = legacyPaymentWarning(x,sourceGroup?.transcript || "");
+  if (contextWarning) return showNotice(contextWarning,true);
   state.paymentId = id;
   $("dialogContextIcon").textContent = momentIcon(x);
   $("dialogContext").textContent = sourceGroup?.title || "Saved conversation";
@@ -481,6 +489,9 @@ async function confirmPayment() {
   const x = itemById(state.paymentId);
   const note = $("paymentNotice");
   if (!x || !["open", "failed"].includes(x.status)) return;
+  const sourceGroup = state.groups.find(group => group.obligations?.some(item => item.id === x.id));
+  const contextWarning = legacyPaymentWarning(x,sourceGroup?.transcript || "");
+  if (contextWarning) return showNotice(contextWarning,true,note);
   const recipient = $("recipientAddress").value.trim();
   if (!isAddress(recipient)) return showNotice("Enter a valid 0x recipient address.", true, note);
   if (!$("recipientVerified").checked) return showNotice("You must independently verify the recipient address before sending.", true, note);

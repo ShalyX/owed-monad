@@ -1,4 +1,5 @@
 import { CHAIN, isAddress, microUsdc, transferData, receiptMatches, switchToMonad, readReceipt, getWalletBalances } from "./payments.js";
+import { resolveManually } from "./actions.js";
 
 const $ = (id) => document.getElementById(id);
 const KEY = "owed-v1-inbox";
@@ -89,7 +90,7 @@ function itemMarkup(x) {
   } else if (x.status === "settled" && x.txHash) {
     controls = '<a class="tx-link" href="' + CHAIN.explorer + '/tx/' + encodeURIComponent(x.txHash) + '" target="_blank" rel="noopener noreferrer">View verified receipt ↗</a>';
   } else if (done) {
-    controls = '<span class="status-text done">✓ Completed</span>';
+    controls = '<span class="status-text done">' + (x.resolution === "manual" ? "✓ Resolved manually" : "✓ Completed") + '</span>';
   } else if (payout) {
     controls = sample
       ? '<span class="sample-tag">Example · not payable</span>'
@@ -299,8 +300,14 @@ function wireEvents() {
     if (!item) return;
     if (btn.dataset.action === "pay") return payDialog(item.id);
     if (btn.dataset.action === "check") return checkReceiptFor(item);
-    if (btn.dataset.action === "complete" && item.kind !== "money" || btn.dataset.action === "complete" && item.direction !== "i_owe") {
-      item.status = "done"; save(); render(); return;
+    if (btn.dataset.action === "complete") {
+      if (!resolveManually(item)) return showNotice("This obligation cannot be resolved manually while a payment is pending or already completed.", true);
+      save();
+      render();
+      showNotice(item.kind === "money"
+        ? "Resolved manually. No onchain USDC payment has been verified for this item."
+        : "Task marked complete.");
+      return;
     }
   });
   $("confirmPayment").addEventListener("click", confirmPayment);

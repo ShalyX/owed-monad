@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { makeServer } from "../server.mjs";
 import { cleanAnalysis } from "../lib/obligations.mjs";
+import { resolveManually } from "../public/actions.js";
 import { CHAIN, microUsdc, transferData, receiptMatches, getWalletBalances } from "../public/payments.js";
 
 const FROM = "0x" + "1".repeat(40);
@@ -15,6 +16,29 @@ const fixture = () => ({
     { title: "Lunch", kind: "money", direction: "i_owe", amount: 6, evidence: "$6 for lunch" },
     { title: "Address", kind: "task", direction: "i_owe", amount: null, evidence: "Please send the address." }
   ]
+});
+test("Resolve manually works on unpriced money and tasks without faking a settlement", () => {
+  const completedAt = new Date("2026-10-08T10:00:00.000Z");
+  for (const item of [
+    { kind: "money", direction: "i_owe", amount: null, status: "open" },
+    { kind: "money", direction: "owed_to_me", amount: 5, status: "open" },
+    { kind: "task", direction: "i_owe", amount: null, status: "open" },
+    { kind: "money", direction: "unclear", amount: null, status: "failed" }
+  ]) {
+    assert.equal(resolveManually(item, completedAt), true);
+    assert.equal(item.status, "done");
+    assert.equal(item.resolution, "manual");
+    assert.equal(item.completedAt, completedAt.toISOString());
+    assert.equal(item.txHash, undefined);
+    assert.equal(item.settledAt, undefined);
+    assert.equal(resolveManually(item, completedAt), false);
+  }
+  for (const status of ["pending", "settled", "done"]) {
+    const item = { kind: "money", direction: "i_owe", status, txHash: "0xabc" };
+    assert.equal(resolveManually(item), false);
+    assert.equal(item.status, status);
+    assert.equal(item.txHash, "0xabc");
+  }
 });
 test("source evidence and wallet authority are enforced", () => {
   const x = cleanAnalysis(fixture(), TEXT);

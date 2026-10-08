@@ -35,21 +35,67 @@ export function receiptMatches(receipt, from, recipient, amount) {
     } catch { return false; }
   });
 }
+const NETWORK_SETUP = "Add Monad Testnet in your wallet's network settings: chain ID 10143, RPC https://testnet-rpc.monad.xyz, currency MON. Then switch to Monad Testnet and retry.";
+function walletErrorFields(error) {
+  return [error, error?.data, error?.data?.originalError, error?.cause].filter(Boolean);
+}
+function isUnrecognizedChain(error) {
+  return walletErrorFields(error).some((entry) =>
+    String(entry.code ?? "") === "4902" ||
+    /unrecognized chain|unknown chain|chain .*not (?:added|configured|found)|network .*not (?:added|configured|found)/i.test(String(entry.message || "")));
+}
+function isWalletRejection(error) {
+  return walletErrorFields(error).some((entry) =>
+    String(entry.code ?? "") === "4001" ||
+    /user (?:rejected|denied|cancelled|canceled)/i.test(String(entry.message || "")));
+}
+function chainIsMonad(id) {
+  return typeof id === "string" && /^0x[0-9a-f]+$/i.test(id) && Number.parseInt(id, 16) === 10143;
+}
+async function requestMonadSwitch(provider) {
+  return provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN.id }] });
+}
 export async function switchToMonad(provider) {
-  const id = await provider.request({ method: "eth_chainId" });
-  if (String(id).toLowerCase() === CHAIN.id) return;
+  if (chainIsMonad(await provider.request({ method: "eth_chainId" }))) return;
   try {
-    await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN.id }] });
+    await requestMonadSwitch(provider);
   } catch (error) {
-    if (error.code !== 4902) throw error;
-    await provider.request({ method: "wallet_addEthereumChain", params: [{
-      chainId: CHAIN.id, chainName: CHAIN.name,
-      rpcUrls: [CHAIN.rpc], nativeCurrency: { name: "MON", symbol: "MON", decimals: 18 },
+    if (isWalletRejection(error)) throw new Error("Network switch cancelled in the wallet. No payment was sent.");
+    if (!isUnrecognizedChain(error)) throw error;
+
+    // EIP-1193 providers disagree on where the 4902 error code is nested.
+    // Some also say "unrecognized chain" without providing a 4902 code.
+    const params = [{
+      chainId: CHAIN.id,
+      chainName: CHAIN.name,
+      rpcUrls: [CHAIN.rpc],
+      nativeCurrency: { name: "MON", symbol: "MON", decimals: 18 },
       blockExplorerUrls: [CHAIN.explorer]
-    }] });
+    }];
+    let added = false;
+    try {
+      await provider.request({ method: "wallet_addEthereumChain", params });
+      added = true;
+    } catch (addError) {
+      if (isWalletRejection(addError)) throw new Error("Network addition cancelled in the wallet. No payment was sent.");
+      if (!isUnrecognizedChain(addError)) {
+        throw new Error("Wallet could not add Monad Testnet automatically. " + NETWORK_SETUP);
+      }
+      // Some wallet implementations reverse the suggestion ("switch first").
+      // Retry the switch once; if still unsupported, show manual instructions.
+    }
+    if (!chainIsMonad(await provider.request({ method: "eth_chainId" }))) {
+      try {
+        await requestMonadSwitch(provider);
+      } catch (retryError) {
+        if (isWalletRejection(retryError)) throw new Error("Network switch cancelled in the wallet. No payment was sent.");
+        throw new Error((added ? "Monad Testnet was added but your wallet could not switch to it. " : "Your wallet did not recognize the network. ") + NETWORK_SETUP);
+      }
+    }
   }
-  const after = await provider.request({ method: "eth_chainId" });
-  if (String(after).toLowerCase() !== CHAIN.id) throw new Error("Wallet is not on Monad Testnet.");
+  if (!chainIsMonad(await provider.request({ method: "eth_chainId" }))) {
+    throw new Error("Wallet is not on Monad Testnet. " + NETWORK_SETUP);
+  }
 }
 export async function getWalletBalances(provider, address) {
   if (!isAddress(address)) throw new Error("Wallet address unavailable.");

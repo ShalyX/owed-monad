@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import { makeServer } from "../server.mjs";
 import { cleanAnalysis } from "../lib/obligations.mjs";
 import { completeTask, dismissMoney, reopenDismissed, restoreLegacyMoney } from "../public/actions.js";
-import { CHAIN, microUsdc, transferData, receiptMatches, getWalletBalances } from "../public/payments.js";
+import { CHAIN, microUsdc, transferData, receiptMatches, getWalletBalances, switchToMonad } from "../public/payments.js";
 
 const FROM = "0x" + "1".repeat(40);
 const TO = "0x" + "2".repeat(40);
@@ -98,6 +98,84 @@ test("explicit debt fallback is source-grounded and excludes hypothetical amount
   assert.equal(reverse.obligations[0].direction, "owed_to_me");
   assert.equal(cleanAnalysis(empty(), "If you owe me $8, tell me.").obligations.length, 0);
   assert.equal(cleanAnalysis(empty(), "The cab cost $20 yesterday.").obligations.length, 0);
+});
+test("Monad wallet recognizes unknown-chain errors and adds Testnet before any payment", async () => {
+  for (const missing of [
+    { code: 4902, message: "Unrecognized chain ID" },
+    { code: "4902", message: "Unknown chain" },
+    { code: -32603, message: 'Unrecognized chain ID "0x279f". Try adding the chain using wallet_switchEthereumChain first.' },
+    { data: { originalError: { code: 4902 } }, message: "Wallet RPC error" }
+  ]) {
+    let selected = "0x1";
+    let added = false;
+    const calls = [];
+    const wallet = {
+      request: async ({method,params}) => {
+        calls.push(method);
+        if (method === "eth_chainId") return selected;
+        if (method === "wallet_switchEthereumChain") {
+          assert.equal(params[0].chainId, CHAIN.id);
+          if (!added) throw missing;
+          selected = CHAIN.id;
+          return null;
+        }
+        if (method === "wallet_addEthereumChain") {
+          assert.equal(params[0].chainId, CHAIN.id);
+          assert.deepEqual(params[0].rpcUrls, [CHAIN.rpc]);
+          assert.equal(params[0].nativeCurrency.symbol, "MON");
+          added = true;
+          return null;
+        }
+        throw new Error("Unexpected wallet method: " + method);
+      }
+    };
+    await switchToMonad(wallet);
+    assert.equal(selected, CHAIN.id);
+    assert.deepEqual(calls.filter(m => m !== "eth_chainId"), [
+      "wallet_switchEthereumChain", "wallet_addEthereumChain", "wallet_switchEthereumChain"
+    ]);
+    assert.equal(calls.includes("eth_sendTransaction"), false);
+  }
+});
+test("Monad switch handles wallets that auto-switch on network addition", async () => {
+  let selected = "0x1";
+  const calls = [];
+  await switchToMonad({request: async ({method,params}) => {
+    calls.push(method);
+    if (method === "eth_chainId") return selected;
+    if (method === "wallet_switchEthereumChain") throw {code: 4902};
+    if (method === "wallet_addEthereumChain") { selected = params[0].chainId; return null; }
+    throw Error("Unexpected method " + method);
+  }});
+  assert.equal(selected, CHAIN.id);
+  assert.equal(calls.filter(x => x === "wallet_switchEthereumChain").length, 1);
+});
+test("Monad wallet rejection never adds a chain or submits a payment", async () => {
+  for (const rejection of [{code:4001}, {data: {originalError:{code:"4001"}}}]) {
+    const methods = [];
+    await assert.rejects(() => switchToMonad({request: async ({method}) => {
+      methods.push(method);
+      if (method === "eth_chainId") return "0x1";
+      throw rejection;
+    }}), /cancelled/i);
+    assert.deepEqual(methods, ["eth_chainId", "wallet_switchEthereumChain"]);
+  }
+});
+test("failed automatic chain addition gives user manual setup instructions", async () => {
+  const calls = [];
+  await assert.rejects(() => switchToMonad({request: async ({method}) => {
+    calls.push(method);
+    if (method === "eth_chainId") return "0x1";
+    if (method === "wallet_switchEthereumChain") throw {code:4902};
+    if (method === "wallet_addEthereumChain") throw {code:-32601, message:"Unsupported method"};
+  }}), /chain ID 10143.*testnet-rpc.monad.xyz/);
+  assert.equal(calls.includes("eth_sendTransaction"), false);
+});
+test("wallet cannot proceed when chain remains wrong after switching", async () => {
+  await assert.rejects(() => switchToMonad({request: async ({method}) => {
+    if (method === "eth_chainId") return "0x1";
+    if (method === "wallet_switchEthereumChain") return null;
+  }}), /Wallet is not on Monad Testnet/);
 });
 test("transfer amount, calldata and recipient match expected USDC encoding", () => {
   assert.equal(microUsdc("12.50"), 12500000n);

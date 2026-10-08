@@ -34,12 +34,16 @@ try{
  if(!await js("!document.querySelector('#pastePanel').classList.contains('hidden')"))throw Error("Paste tab not restored");
  const fixture=[{id:"smoke-group",title:"Realistic test message",source:"text",fingerprint:"temporary-browser-smoke",createdAt:new Date().toISOString(),obligations:[
  {id:"smoke-task",title:"Send the venue link",kind:"task",direction:"i_owe",status:"open",evidence:"Send the venue link",amount:null},
- {id:"smoke-money",title:"Coffee payback",kind:"money",direction:"i_owe",status:"open",evidence:"You owe me $0.01",amount:0.01,txHash:""}
+ {id:"smoke-money",title:"Coffee payback",kind:"money",direction:"i_owe",status:"open",evidence:"You owe me $0.01",amount:0.01,txHash:""},
+ {id:"shadow-task",title:"Send payment details",kind:"task",direction:"i_owe",status:"open",evidence:"You owe me $0.01",amount:null}
  ]}];
  await js("localStorage.setItem('owed-v1-inbox',"+JSON.stringify(JSON.stringify(fixture))+");location.reload();true");
  let ready=false;
  for(let i=0;i<45;i++){try{ready=await js("!!document.querySelector('button[data-action=\"complete\"][data-id=\"smoke-task\"]')");if(ready)break;}catch{}await sleep(150)}
  if(!ready)throw Error("Task card did not render");
+ const legacyReconciled=await js("(()=>{const g=JSON.parse(localStorage.getItem('owed-v1-inbox'))[0];return {ids:g.obligations.map(x=>x.id),visible:!!document.querySelector('[data-item-id=shadow-task]'),notice:document.querySelector('#notice').textContent}})()");
+ console.log("LEGACY_PAYMENT_SHADOW_CLEANUP="+JSON.stringify(legacyReconciled));
+ if(legacyReconciled.ids.length!==2||legacyReconciled.ids.includes("shadow-task")||legacyReconciled.visible||!legacyReconciled.notice.includes("Tidied up"))throw Error("Existing browser inbox duplicate payment task was not removed");
  const snap=()=>js("(()=>{const g=JSON.parse(localStorage.getItem('owed-v1-inbox'))[0];return {task:g.obligations[0].status,money:g.obligations[1].status,transaction:g.obligations[1].txHash||'',open:document.querySelector('#openCount').textContent,done:document.querySelector('#doneCount').textContent,notice:document.querySelector('.action-moment')?.textContent||'',class:document.querySelector('.action-moment')?.className||''}})()");
  await js("document.querySelector('button[data-action=\"complete\"][data-id=\"smoke-task\"]').click();true");
  const completed=await snap();console.log("TASK_COMPLETE="+JSON.stringify(completed));

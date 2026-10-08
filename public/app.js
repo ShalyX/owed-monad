@@ -5,10 +5,12 @@ import { avatarSvg, friendScene } from "./characters.js";
 import { showSettlementMoment } from "./delight.js";
 import { showDiscoveryMoment } from "./discovery.js";
 import { showActionMoment } from "./moments.js";
+import { removeShadowPaymentTasks } from "./obligation-dedupe.js";
 
 const $ = (id) => document.getElementById(id);
 const KEY = "owed-v1-inbox";
 let restoredLegacyMoneyCount = 0;
+let collapsedDuplicateTaskCount = 0;
 const state = { groups: load(), filter: "all", file: null, recorded: null, recorder: null, chunks: [], timer: null, startedAt: 0, processing: false, paymentId: null, receiptId: null, receiptEpoch: 0, wallet: "", lastVoicePerspective: "incoming" };
 $("friendStage").innerHTML = friendScene();
 $("analysisBuddy").innerHTML = avatarSvg("the-planner");
@@ -36,7 +38,13 @@ function load() {
     const x = JSON.parse(localStorage.getItem(KEY) || "[]");
     if (!Array.isArray(x)) return [];
     restoredLegacyMoneyCount = restoreLegacyMoney(x);
-    if (restoredLegacyMoneyCount) localStorage.setItem(KEY, JSON.stringify(x));
+    for (const group of x) {
+      if (!Array.isArray(group?.obligations)) continue;
+      const repaired = removeShadowPaymentTasks(group.obligations, { onlyOpen: true });
+      collapsedDuplicateTaskCount += group.obligations.length - repaired.length;
+      if (repaired.length !== group.obligations.length) group.obligations = repaired;
+    }
+    if (restoredLegacyMoneyCount || collapsedDuplicateTaskCount) localStorage.setItem(KEY, JSON.stringify(x));
     return x;
   } catch { return []; }
 }
@@ -585,4 +593,5 @@ function wireEvents() {
 wireEvents();
 render();
 if (restoredLegacyMoneyCount) showNotice("Reopened " + restoredLegacyMoneyCount + " money item(s) previously marked complete without a verified payment. You can now pay or dismiss each one.");
+if (collapsedDuplicateTaskCount) showNotice("Tidied up " + collapsedDuplicateTaskCount + " duplicate open to-do(s) describing an existing money request. Your payments, finished tasks, and receipts were kept.");
 for (const x of allItems().filter((a) => a.status === "pending")) checkReceiptFor(x, false);

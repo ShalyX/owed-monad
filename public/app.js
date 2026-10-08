@@ -6,6 +6,7 @@ import { showSettlementMoment } from "./delight.js";
 import { showDiscoveryMoment } from "./discovery.js";
 import { showActionMoment } from "./moments.js";
 import { removeShadowPaymentTasks } from "./obligation-dedupe.js";
+import { findSourceAddresses } from "./address-hints.js";
 
 const $ = (id) => document.getElementById(id);
 const KEY = "owed-v1-inbox";
@@ -306,6 +307,55 @@ function stopRecording() {
   $("recorderVisual").classList.remove("is-recording");
   $("recordStatus").textContent = "Ready to find the loose ends ✦";
 }
+function showSourceAddressHints(sourceGroup, input) {
+  const panel = $("sourceAddressPanel");
+  const list = $("sourceAddressList");
+  list.replaceChildren();
+  const found = findSourceAddresses(sourceGroup?.transcript || "");
+  panel.classList.toggle("hidden", found.addresses.length === 0);
+  if (!found.addresses.length) return;
+  const multiple = found.addresses.length > 1 || found.additional > 0;
+  const status = $("sourceAddressStatus");
+  status.textContent = multiple
+    ? "Several addresses found. Choose only after confirming the recipient."
+    : found.auto ? "A payment destination was explicitly written in the chat." : "An address was mentioned. Check whether it belongs to the recipient.";
+  for (const candidate of found.addresses) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "source-address-choice";
+    const top = document.createElement("span");
+    top.className = "source-address-choice-top";
+    const label = document.createElement("strong");
+    label.textContent = candidate.label;
+    const action = document.createElement("span");
+    action.textContent = "Use address ↗";
+    top.append(label, action);
+    const address = document.createElement("code");
+    address.textContent = candidate.address;
+    const quote = document.createElement("small");
+    quote.textContent = candidate.excerpt;
+    button.append(top, address, quote);
+    button.addEventListener("click", () => {
+      input.value = candidate.address;
+      $("recipientVerified").checked = false;
+      for (const choice of list.children) choice.classList.toggle("chosen", choice === button);
+      status.textContent = "Selected from the message. Verify the recipient independently before sending.";
+      hideNotice($("paymentNotice"));
+    });
+    list.append(button);
+    if (found.auto === candidate.address) {
+      input.value = candidate.address;
+      button.classList.add("chosen");
+      action.textContent = "Pre-filled ✦";
+    }
+  }
+  if (found.additional) {
+    const note = document.createElement("p");
+    note.className = "source-address-extra";
+    note.textContent = found.additional + " more address(es) were found. Copy the intended one from the conversation and verify it independently.";
+    list.append(note);
+  }
+}
 function payDialog(id) {
   const x = itemById(id);
   if (!x || x.kind !== "money" || x.direction !== "i_owe" || x.amount === null || !["open", "failed"].includes(x.status)) return;
@@ -319,6 +369,7 @@ function payDialog(id) {
   $("dialogAmount").textContent = money(x.amount);
   $("recipientAddress").value = x.recipientAddress || "";
   $("recipientVerified").checked = false;
+  showSourceAddressHints(sourceGroup, $("recipientAddress"));
   hideNotice($("paymentNotice"));
   $("payDialog").showModal();
 }
@@ -572,6 +623,14 @@ function wireEvents() {
     }
   });
   $("confirmPayment").addEventListener("click", confirmPayment);
+  $("recipientAddress").addEventListener("input", () => {
+    $("recipientVerified").checked = false;
+    const panel = $("sourceAddressPanel");
+    if (!panel.classList.contains("hidden")) {
+      $("sourceAddressStatus").textContent = "Address edited. Verify these exact characters with the recipient.";
+      panel.querySelectorAll(".source-address-choice").forEach(button => button.classList.remove("chosen"));
+    }
+  });
   $("payDialog").addEventListener("close", () => { state.paymentId = null; $("recipientVerified").checked = false; });
   $("receiptDialog").addEventListener("close", () => { state.receiptId = null; state.receiptEpoch++; });
   $("receiptRefresh").addEventListener("click", () => { if (state.receiptId) refreshReceipt(state.receiptId); });

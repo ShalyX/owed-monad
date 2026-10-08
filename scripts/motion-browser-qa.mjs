@@ -177,6 +177,41 @@ try{
  const selfChoice=await js("({defaultContext:document.querySelector('#recordPerspective').value,choices:document.querySelector('#recordPerspective').options.length})");
  console.log("RECORD_SPEAKER_SELECTION="+JSON.stringify(selfChoice));
  if(selfChoice.defaultContext!=="incoming"||selfChoice.choices!==2)throw Error("Built-in recording must offer incoming / self-reminder distinction");
+ // Synthetic source-address handoff. The wallet itself must never be called.
+ const walletA="0x"+"a".repeat(40),walletB="0x"+"b".repeat(40);
+ const makeSource=(transcript)=>[{id:"address-group",source:"text",title:"Payback message",fingerprint:"address-fixture",transcript,obligations:[{id:"address-pay",title:"Payback",kind:"money",direction:"i_owe",status:"open",amount:10,evidence:"you owe me $10",recipientAddress:""}]}];
+ await js("localStorage.setItem('owed-v1-inbox',"+JSON.stringify(JSON.stringify(makeSource("You owe me $10. Please send $10 USDC to "+walletA)))+");location.reload();true");
+ let readyPayment=false;
+ for(let i=0;i<40;i++){try{readyPayment=await js("!!document.querySelector('button[data-action=pay][data-id=address-pay]')");if(readyPayment)break}catch{}await sleep(120)}
+ if(!readyPayment)throw Error("Synthetic payment record didn't load");
+ await js("window.ethereum={request:async()=>{window.__unexpectedWalletCalls=(window.__unexpectedWalletCalls||0)+1;throw Error('Wallet must not be called without verification')}};document.querySelector('button[data-action=pay][data-id=address-pay]').click();true");
+ const autoHint=await js("({open:document.querySelector('#payDialog').open,prefill:document.querySelector('#recipientAddress').value,checked:document.querySelector('#recipientVerified').checked,suggestions:document.querySelectorAll('.source-address-choice').length,status:document.querySelector('#sourceAddressStatus').textContent})");
+ console.log("SOURCE_ADDRESS_PREFILL="+JSON.stringify(autoHint));
+ if(!autoHint.open||autoHint.prefill!==walletA||autoHint.checked||autoHint.suggestions!==1)throw Error("Single explicit source address was not safely prefilled");
+ await js("document.querySelector('#confirmPayment').click();true");
+ const blocked=await js("({walletCalls:window.__unexpectedWalletCalls||0,notice:document.querySelector('#paymentNotice').textContent,checked:document.querySelector('#recipientVerified').checked})");
+ console.log("ADDRESS_REQUIRES_CONFIRMATION="+JSON.stringify(blocked));
+ if(blocked.walletCalls!==0||!blocked.notice.includes("independently verify")||blocked.checked)throw Error("Prefill must not authorize a payment");
+ await js("document.querySelector('#recipientVerified').checked=true;document.querySelector('#recipientAddress').value='0x'+'c'.repeat(40);document.querySelector('#recipientAddress').dispatchEvent(new Event('input',{bubbles:true}));true");
+ if(await js("document.querySelector('#recipientVerified').checked"))throw Error("Manual address edits must invalidate earlier verification");
+ await js("document.querySelector('#payDialog').close();true");
+ await js("localStorage.setItem('owed-v1-inbox',"+JSON.stringify(JSON.stringify(makeSource("You owe me $10. Addresses discussed: "+walletA+" and "+walletB)))+");location.reload();true");
+ for(let i=0;i<35;i++){if(await js("!!document.querySelector('button[data-action=pay][data-id=address-pay]')"))break;await sleep(110)}
+ await js("document.querySelector('button[data-action=pay][data-id=address-pay]').click();true");
+ const many=await js("({prefill:document.querySelector('#recipientAddress').value,checked:document.querySelector('#recipientVerified').checked,choices:document.querySelectorAll('.source-address-choice').length})");
+ console.log("MULTI_ADDRESS_NO_GUESS="+JSON.stringify(many));
+ if(many.prefill||many.checked||many.choices!==2)throw Error("Multiple addresses must never be silently selected");
+ await js("document.querySelectorAll('.source-address-choice')[1].click();true");
+ const userPick=await js("({chosen:document.querySelector('#recipientAddress').value,verified:document.querySelector('#recipientVerified').checked})");
+ if(userPick.chosen!==walletB||userPick.verified)throw Error("Choosing address must be explicit and unverified");
+ await js("document.querySelector('#payDialog').close();true");
+ await js("localStorage.setItem('owed-v1-inbox',"+JSON.stringify(JSON.stringify(makeSource("You owe me $10. I'll send you my wallet details later.")))+");location.reload();true");
+ for(let i=0;i<35;i++){if(await js("!!document.querySelector('button[data-action=pay][data-id=address-pay]')"))break;await sleep(110)}
+ await js("document.querySelector('button[data-action=pay][data-id=address-pay]').click();true");
+ const absent=await js("({value:document.querySelector('#recipientAddress').value,panelHidden:document.querySelector('#sourceAddressPanel').classList.contains('hidden'),verified:document.querySelector('#recipientVerified').checked})");
+ console.log("NO_ADDRESS_NOT_GUESSED="+JSON.stringify(absent));
+ if(absent.value||!absent.panelHidden||absent.verified)throw Error("Missing addresses must remain blank");
+ await js("document.querySelector('#payDialog').close();true");
  if(errors.length)throw Error("Browser exceptions: "+errors.join("; "));
  console.log("PASS_BROWSER_TASK_MONEY_UNDO_DISCOVERY_MOBILE_REDUCED_MOTION");
 }catch(e){failures++;console.log("BROWSER_QA_FAILURE="+e.message)}

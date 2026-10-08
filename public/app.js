@@ -214,6 +214,7 @@ function openReceipt(id) {
   $("receiptAmount").textContent = formatReceiptAmount(item.amount);
   $("receiptPayer").textContent = item.payer || "—";
   $("receiptRecipient").textContent = item.recipientAddress || "—";
+  $("receiptToken").textContent = CHAIN.usdc;
   $("receiptHash").textContent = item.txHash;
   $("receiptExplorer").href = CHAIN.explorer + "/tx/" + encodeURIComponent(item.txHash);
   $("receiptCopy").textContent = "Copy transaction hash ↗";

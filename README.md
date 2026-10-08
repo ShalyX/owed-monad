@@ -87,3 +87,13 @@ This project supports a paid Hugging Face mode for reference, but our current wo
 **Safety:** No AI-generated recipient address is trusted; source quotes are verified against the actual transcript. Money/transcription ambiguity requires review, and transfers always require explicit wallet confirmation and on-chain event verification. A 0.5B model is not production-grade reasoning; never auto-pay.
 
 **Troubleshooting:** `faster-whisper` 1.2.1 currently needs `av<19`; PyAV 19 dropped the `metadata_errors` argument its decoder uses. Audio weights are downloaded once for free from Hugging Face Hub (not billed inference). The VPS is resource-constrained; if model processing times out or would disturb running services, scale down or disable the worker rather than kill unrelated services.
+
+### Verified VPS pilot
+
+As of 2026-10-08, `caraxes-vps` runs two *private loopback-only* systemd services: `owed-inference.service` on `127.0.0.1:18765` and `owed-app.service` on `127.0.0.1:3001`. Ollama is loopback-only on `127.0.0.1:11434`. All three have resource limits. Other existing VPS services have been left running.
+
+On the authorized Windows PC, double-click **`CONNECT-VPS.cmd`** to open a private SSH tunnel and the live app at **http://localhost:3001**. Browser wallets remain entirely on the PC. If the SSH tunnel closes or the PC restarts, run the shortcut again. This is a private pilot, not a public HTTPS deployment.
+
+The live synthetic smoke test is `/opt/owed-worker/node /opt/owed-app/scripts/test-vps-e2e.mjs` (run over SSH). It requires a real Qwen text response and actual Whisper transcription; the strict source-quote validation and conservative literal-debt fallback work together. Audio amounts transcribed as number words (such as "two dollars") intentionally do not unlock a payable USDC amount; human review remains required.
+
+**Still unproven:** An actual funded Circle USDC transfer from a user's browser wallet followed by an independently matched Monad receipt. The automated chain/receipt unit tests do not substitute for this.

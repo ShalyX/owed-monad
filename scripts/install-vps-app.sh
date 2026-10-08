@@ -5,6 +5,9 @@ if test ! -d /opt/owed-app/.git; then
 else
   git -C /opt/owed-app pull --ff-only origin main
 fi
+if test ! -x /opt/owed-worker/node; then
+  install -m 755 "$(command -v node)" /opt/owed-worker/node
+fi
 cat > /etc/systemd/system/owed-app.service <<'EOF'
 [Unit]
 Description=Owed Private Web App / Testnet Wallet UX
@@ -20,7 +23,7 @@ Environment=LOCAL_INFERENCE_URL=http://127.0.0.1:18765
 Environment=HOST=127.0.0.1
 Environment=PORT=3001
 Environment=NODE_ENV=production
-ExecStart=/usr/local/bin/node server.mjs
+ExecStart=/opt/owed-worker/node server.mjs
 Restart=on-failure
 RestartSec=3
 MemoryHigh=170M

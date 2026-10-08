@@ -38,7 +38,7 @@
         </div>
         <div class="capture-body hidden" id="recordPanel">
           <p class="record-helper">Record a conversation or speak a reminder. Your browser will ask for microphone access.</p>
-          <div class="recorder"><div id="recordDot" class="record-dot"></div><strong id="recordTime">00:00</strong><span id="recordStatus">Ready to record</span></div>
+          <div class="recorder" id="recorderVisual"><div id="recordDot" class="record-dot"></div><strong id="recordTime">00:00</strong><span id="recordStatus" role="status">Ready to record</span><span class="record-waves" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span></div>
           <button class="action-btn" type="button" id="recordBtn">● Start recording</button>
           <audio id="recordPlayback" controls class="hidden"></audio>
           <button class="secondary-btn hidden" id="analyzeRecording" type="button">Analyze recording ↗</button>
@@ -66,7 +66,7 @@
     </section>
   </main>
   <nav class="mobile-dock" aria-label="Quick navigation">
-    <a href="#capture" class="dock-link" data-dock="capture"><span class="dock-icon" aria-hidden="true">✳</span><span>Add</span></a>
+    <a href="#capture" class="dock-link active" data-dock="capture" aria-current="location"><span class="dock-icon" aria-hidden="true">✳</span><span>Add</span></a>
     <a href="#my-inbox" class="dock-link" data-dock="inbox"><span class="dock-icon" aria-hidden="true">♥</span><span>Inbox</span><span id="dockCount" class="dock-count" aria-label="0 open items">0</span></a>
     <button type="button" class="dock-link" data-dock="receipts"><span class="dock-icon" aria-hidden="true">▤</span><span>Receipts</span></button>
   </nav>

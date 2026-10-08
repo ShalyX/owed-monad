@@ -24,6 +24,14 @@ try{
  const sceneAfter=await js("({tip:document.querySelector('#sceneQuote').textContent,chosen:document.querySelector('[data-friend-tip=\"2\"]').getAttribute('aria-pressed'),buttonCount:document.querySelectorAll('.friend-cast button').length})");
  console.log("CHARACTER_REACTION="+JSON.stringify({before:sceneStart,after:sceneAfter}));
  if(sceneAfter.tip===sceneStart||sceneAfter.chosen!=="true"||sceneAfter.buttonCount!==4)throw Error("Illustrated crew does not respond to a tap");
+ await js("document.querySelector('[data-mode=record]').click();true");
+ const recorder=await js("({visible:!document.querySelector('#recordPanel').classList.contains('hidden'),waveBars:document.querySelectorAll('.record-waves i').length,importHidden:document.querySelector('#importPanel').classList.contains('hidden')})");
+ console.log("RECORD_TAB="+JSON.stringify(recorder));
+ if(!recorder.visible||recorder.waveBars!==5||!recorder.importHidden)throw Error("Record tab missing or waveform markup invalid");
+ await js("document.querySelector('[data-mode=import]').click();true");
+ if(!await js("!document.querySelector('#importPanel').classList.contains('hidden')"))throw Error("Import tab not opening");
+ await js("document.querySelector('[data-mode=paste]').click();true");
+ if(!await js("!document.querySelector('#pastePanel').classList.contains('hidden')"))throw Error("Paste tab not restored");
  const fixture=[{id:"smoke-group",title:"Realistic test message",source:"text",fingerprint:"temporary-browser-smoke",createdAt:new Date().toISOString(),obligations:[
  {id:"smoke-task",title:"Send the venue link",kind:"task",direction:"i_owe",status:"open",evidence:"Send the venue link",amount:null},
  {id:"smoke-money",title:"Coffee payback",kind:"money",direction:"i_owe",status:"open",evidence:"You owe me $0.01",amount:0.01,txHash:""}

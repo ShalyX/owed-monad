@@ -263,7 +263,8 @@ async function startRecording() {
   state.startedAt = Date.now();
   $("recordBtn").textContent = "■ Stop recording";
   $("recordDot").classList.add("recording");
-  $("recordStatus").textContent = "Recording";
+  $("recorderVisual").classList.add("is-recording");
+  $("recordStatus").textContent = "Listening to your moment…";
   state.timer = setInterval(() => {
     const s = Math.floor((Date.now() - state.startedAt) / 1000);
     $("recordTime").textContent = String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
@@ -274,7 +275,8 @@ function stopRecording() {
   clearInterval(state.timer);
   $("recordBtn").textContent = "● Record another note";
   $("recordDot").classList.remove("recording");
-  $("recordStatus").textContent = "Recording ready to analyze";
+  $("recorderVisual").classList.remove("is-recording");
+  $("recordStatus").textContent = "Ready to find the loose ends ✦";
 }
 function payDialog(id) {
   const x = itemById(id);

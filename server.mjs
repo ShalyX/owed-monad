@@ -8,6 +8,7 @@ import { explicitSpokenPayments } from "./lib/spoken-obligations.mjs";
 import { inspectFinancialContext } from "./public/financial-context.js";
 import { findVoluntaryRequests } from "./public/voluntary-request.js";
 import { getChainReceipt } from "./lib/chain-receipts.mjs";
+import { createPublicGate } from "./lib/public-gate.mjs";
 
 // Pick up a newly saved local token without a server restart; never log it.
 function hfToken() {
@@ -140,10 +141,18 @@ async function staticFile(req, res, url) {
     res.end(req.method === "HEAD" ? undefined : data);
   } catch { send(res, 404, { error: "Not found" }); }
 }
-export function makeServer() {
+export function makeServer(options = {}) {
+  const gate = createPublicGate(options);
   return createServer(async (req, res) => {
     const url = new URL(req.url || "/", "http://localhost");
+    let release = () => {};
     try {
+      const admission = gate.admit(req,url.pathname);
+      if (!admission.ok) {
+        if (admission.retryAfter) res.setHeader("retry-after",String(admission.retryAfter));
+        return send(res,admission.status,{error:admission.message});
+      }
+      release = admission.release;
       if (req.method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, app: "Owed", inferenceConfigured: Boolean(process.env.LOCAL_INFERENCE_URL ? process.env.OWED_WORKER_TOKEN : hfToken()), inferenceProvider: process.env.LOCAL_INFERENCE_URL ? "private-vps" : "huggingface", network: "monad-testnet" });
       if (req.method === "GET" && url.pathname === "/api/config") return send(res, 200, { chainId: 10143, rpc: "https://testnet-rpc.monad.xyz", explorer: "https://testnet.monadvision.com", usdc: "0x534b2f3A21130d7a60830c2Df862319e593943A3", decimals: 6, livePayments: true, chain: "Monad Testnet" });
       if (req.method === "GET" && url.pathname === "/api/receipt") {
@@ -163,6 +172,8 @@ export function makeServer() {
     } catch (e) {
       console.error("Owed request failed:", e instanceof Error ? e.message : String(e));
       send(res, e.status || (e.name === "SyntaxError" ? 400 : 500), { error: e instanceof Error ? e.message : "Unexpected error", ...(typeof e.transcript === "string" ? { transcript: e.transcript } : {}) });
+    } finally {
+      release();
     }
   });
 }

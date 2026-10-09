@@ -1,6 +1,8 @@
 # Owed — From conversation to completion
 
-A usable Monad Testnet MVP: paste messages, record voice, or import a voice note. Whisper transcribes speech, Gemma extracts explicit obligations, and the user decides what to complete. For money owed, Owed requests a wallet-signed native Circle USDC transfer on Monad Testnet, then verifies the transaction receipt before marking it settled.
+**Current public HTTPS pilot:** See [PUBLIC_DEMO_RUNBOOK.md](PUBLIC_DEMO_RUNBOOK.md) for the temporary Cloudflare URL retrieval, release safety checks, and what still blocks a stable judge-facing submission. The old localhost SSH tunnel remains available, but public visitors do not depend on the owner's PC.
+
+A Monad Testnet MVP: paste messages, record voice, or import a voice note. Local Whisper transcribes speech; the current private VPS uses Qwen2.5 0.5B plus source-grounded safety checks to extract obligations (Hugging Face/Gemma is an optional alternate lane). The user reviews what to complete. For money owed, Owed requests a wallet-signed native Circle USDC transfer on Monad Testnet, then verifies the transaction receipt before marking it settled.
 
 ## Why it exists
 

@@ -123,3 +123,14 @@ test("HTTP API recovers an explicit voluntary request even when model returns no
   }
  }
 });
+
+test("small-model money hallucination in background explanation is not another debt",()=>{
+ const text="Could I please get a dollar from you? I'm short on grocery money.";
+ const raw={title:"Help request",obligations:[
+  {title:"Grocery money",kind:"money",direction:"unclear",amount:null,evidence:"I'm short on grocery money."}
+ ]};
+ const group=cleanAnalysis(raw,text);
+ assert.equal(group.obligations.length,1);
+ assert.equal(group.obligations[0].intent,"voluntary_request");
+ assert.equal(group.obligations[0].amount,1);
+});

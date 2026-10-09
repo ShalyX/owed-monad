@@ -1,90 +1,85 @@
 # Owed · Public demo runbook
 
-This is a **Monad Testnet pilot**, not a public production payments service.
-The public HTTPS preview is provided by a Cloudflare Quick Tunnel, whose
-random hostname may change after any restart or network interruption.
-**Never submit that hostname as the permanent hackathon URL.**
+**Public HTTPS:** https://owed-monad.tail5a7dd1.ts.net/
+
+**Current state (October 9, 2026):** Public HTTPS, live private AI
+inference, separate Money and To-do cards, and payment review safety
+controls passed. A real wallet-approved USDC transfer and independently
+verified onchain receipt on this exact origin remain a final user-led test.
+
+Owed is a **Monad Testnet pilot**, not a production payments service.
+Tailscale Funnel remains beta, and availability depends on our VPS.
 
 ## Architecture
 
-Browser -> Cloudflare HTTPS Quick Tunnel -> 127.0.0.1:3001 (Node app)
--> 127.0.0.1:18765 (private authenticated inference worker)
--> 127.0.0.1:11434 (private Ollama)
+Browser → Tailscale Funnel HTTPS → 127.0.0.1:3001 (Node)
+→ 127.0.0.1:18765 (authenticated private inference worker)
+→ 127.0.0.1:11434 (private Ollama)
 
-- The app and inference worker are still bound to localhost on the VPS.
-- No wallet private keys, signing sessions, or verified receipts are server-managed.
-- The wallet signs a USDC transfer only after the user chooses the recipient,
-  independently verifies the address, and confirms in their EVM wallet.
-- Browser localStorage stores user-side conversations and decisions. Analysis
-  sends the supplied text/audio to the private VPS for processing. Do not
-  claim the entire experience is entirely offline or private from the server.
-- The release does not change other existing VPS services.
+Funnel was started with: **tailscale funnel --bg --yes 3001**.
 
-## Check the preview
+Judges do not need Tailscale accounts. Keep all app and inference
+ports bound to loopback. Never expose worker or Ollama directly.
 
-On VPS:
+The previous Cloudflare Quick Tunnel is a temporary migration preview,
+not the submission URL. Verify its service state before assuming it is
+retired.
 
-```bash
-systemctl is-active owed-app owed-inference ollama owed-demo-tunnel
-curl -fsS http://127.0.0.1:3001/health
-journalctl -u owed-demo-tunnel --no-pager -n 150 -o cat \
-  | grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' | tail -1
-```
+## Verify the deployment
 
-The URL above is **ephemeral**. Cloudflare Quick Tunnels are explicitly
-for tests/dev and have no uptime guarantee.
+Run on the VPS:
 
-With the current temporary HTTPS URL substituted:
+    systemctl is-active tailscaled owed-app owed-inference ollama
+    tailscale funnel status
+    curl -fsS http://127.0.0.1:3001/health
+    curl -fsS https://owed-monad.tail5a7dd1.ts.net/health
+    cd /opt/owed-app
+    /opt/owed-worker/node --test tests/*.test.mjs
+    OWED_PUBLIC_URL=https://owed-monad.tail5a7dd1.ts.net/ /opt/owed-worker/node scripts/public-browser-smoke.mjs
 
-```bash
-curl -fsS https://YOUR-PREVIEW.trycloudflare.com/health
-OWED_PUBLIC_URL=https://YOUR-PREVIEW.trycloudflare.com/ \
-  /opt/owed-worker/node scripts/public-browser-smoke.mjs
-/opt/owed-worker/node --test tests/*.test.mjs
-```
+The real-browser test checks secure HTTPS, real text inference, one
+Money item and one distinct To-do, an accurate USDC review amount,
+no guessed recipient, and refusal to send without recipient verification.
+It does not sign a transaction.
 
-The browser script checks HTTPS, real text inference, cards for a money request
-and an independent to-do, and the wallet confirmation guard. It deliberately
-does **not** simulate a successful transfer, produce a fake receipt, or sign.
+## Security and privacy boundaries
 
-## Rate and privacy guards
+- No automatic transfers. The user chooses and independently verifies
+  the recipient and confirms the transaction in their own EVM wallet.
+- Source conversations, decisions and saved receipts remain in browser
+  localStorage. It is not encrypted or cross-device. Supplied text and audio
+  are processed on the private VPS, so do not claim offline-only analysis.
+- No server-side signing keys or wallet transfer execution endpoint.
+- Public demo mode caps analysis at 12 requests per hour per **observed**
+  client IP, one simultaneous analysis per observed client, and two globally.
+  Receipt lookups have a separate limit. Reverse proxies can cause several
+  clients to appear as one IP; these controls are best effort, not a
+  substitute for robust identity or DDoS controls. Limits reset on restart.
+- Cross-site analysis POSTs are rejected. App responses use no-store cache.
+- This is Monad Testnet only; funds and gas must be testnet assets.
+- Qwen and Whisper can misinterpret or mistranscribe. Review source text.
 
-On the VPS, the systemd drop-in
-`/etc/systemd/system/owed-app.service.d/public-demo.conf` enables
-`OWED_PUBLIC_DEMO=1`. The in-process request gate caps:
-- analysis attempts: 12 per hour per observed client IP;
-- active analyses: 1 per client and 2 globally;
-- receipt lookups: 45 per minute per observed client IP.
+## Remaining real-wallet acceptance test
 
-These are **best-effort protections, not identity/authentication or a
-guaranteed DDoS defense**. They reset at restart and do not protect against
-distributed attackers. Reject cross-origin POSTs and keep response headers
-`Cache-Control: no-store`. Never expose ports 18765 or 11434.
+A consenting wallet owner must:
 
-## Before sending judges a permanent link
+1. Open the public Tailscale URL in a fresh browser.
+2. Analyze an actual payment request; confirm amount, perspective and quote.
+3. Independently verify a recipient on Monad Testnet.
+4. Ensure tiny balances of Circle Monad Testnet USDC and test MON.
+5. Confirm a small transfer in the injected wallet.
+6. Preserve the transaction hash and verify the successful receipt, token
+   contract, sender, recipient, amount, and Transfer event onchain.
+7. Check the Owed receipt modal and persisted state after reload.
+8. Test a rejected wallet signature and insufficient-balance case.
 
-1. Configure a **named Cloudflare Tunnel** on a zone/domain controlled by the
-   owner, using a stable HTTPS hostname for Owed. Do not replace other tunnel
-   or web services. Keep the app bound to loopback.
-2. Stop/disable `owed-demo-tunnel.service` only **after** the named tunnel
-   passes real browser and live inference tests, or keep it temporarily while
-   migrating.
-3. Exercise the whole journey with an actual external user's browser wallet:
-   capture -> review -> verify recipient independently -> choose to pay ->
-   approve a small **Monad Testnet Circle USDC** transaction in the wallet ->
-   independently check tx receipt, payer, recipient, amount, and token ->
-   verify the receipt modal and surviving reload state. Do not claim this
-   worked on a specific transaction unless its hash was actually checked.
-4. Test fresh browser and mobile layouts on the permanent URL.
-5. Confirm demo stability, free inference capacity, TLS, transcript limitations,
-   testnet-only warnings, and no accidental claims of production use.
+Do not claim a particular funded transfer passed unless its authentic
+receipt has been checked. Automated smoke tests do not simulate settled
+funds or sign on behalf of a user.
 
-## Limits worth mentioning
+## Operational notes
 
-- Temporary tunnel URL changes on restart; named tunnel/domain still required.
-- Browser localStorage is not encrypted, transferable, or tamperproof.
-- On-device Whisper and Qwen may mis-transcribe or misunderstand; source review
-  before paying is mandatory.
-- An untrusted chat quote must never count as wallet identity verification.
-- The VPS is resource-constrained. Production-scale inference would need
-  capacity planning and stronger edge protection.
+If the public site fails, check the VPS app health, Funnel configuration,
+tailscaled service, DNS and TLS, then the tailscaled journal. This ts.net
+hostname remains stable for the registered tailnet/device unless that
+registration or configuration changes. Funnel is beta, not an uptime SLA.

@@ -21,13 +21,19 @@ export function unsafeRequestSegments(source) {
     const next=segments[i+1]?.text||"";
     const follow=segment.text.slice(request.index);
     let reason="";
+    let end=segment.end;
     if(reported.test(prefix))reason="A money request was quoted or retold, not clearly addressed to you.";
-    else if(withdraw.test(follow)||withdraw.test(next))reason="The money request appears to have been withdrawn. No payment was added.";
+    else if(withdraw.test(follow)||withdraw.test(next)) {
+      reason="The money request appears to have been withdrawn. No payment was added.";
+      if(withdraw.test(next))end=segments[i+1].end;
+    }
     else if(revision.test(follow)&&[...follow.matchAll(moneyMention)].length>=2)
       reason="More than one possible amount was mentioned. Confirm the final amount before paying.";
-    else if(revision.test(next)&&[...next.matchAll(moneyMention)].length)
+    else if(revision.test(next)&&[...next.matchAll(moneyMention)].length){
       reason="The requested amount may have changed. Confirm the final amount before paying.";
-    if(reason)out.push({...segment,reason});
+      end=segments[i+1].end;
+    }
+    if(reason)out.push({...segment,end,reason});
   }
   return out;
 }

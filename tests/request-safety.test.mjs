@@ -82,6 +82,12 @@ test("reported or cancelled requests cannot survive model task mislabeling",()=>
  const result=parse(text,[item("Can you send me $5?","task",null)]);
  assert.equal(result.obligations.length,0);
 });
+test("small model quoting only the cancellation cannot create a Send task",()=>{
+ const text="Can you send me $5? Actually no, never mind.";
+ const result=parse(text,[item("Actually no, never mind.","task",null)]);
+ assert.equal(result.obligations.length,0);
+ assert.match(result.analysisNote,/withdrawn/i);
+});
 test("safety inspection does not mark an ordinary debt as a withdrawn request",()=>{
  const text="You still owe me $12 for cab.";
  assert.equal(unsafeRequestSegments(text).length,0);

@@ -1,3 +1,5 @@
+import { unsafeMoneyRequestReason } from "./request-safety.js";
+
 // Explicit voluntary money asks, separate from a debt and from general spending advice.
 // Ground every candidate in the exact source words. Never invent a payee wallet.
 const amount = String.raw`(?:\$\s*\d{1,5}(?:\.\d{1,6})?|\b\d{1,5}(?:\.\d{1,6})?\s*(?:USDC|USD|dollars?)\b|\b(?:a|one|two|three|four|five|six|seven|eight|nine|ten|twenty|fifty|hundred)\s+dollars?\b)`;
@@ -14,12 +16,15 @@ const negated=/\b(?:if|unless|hypothetically|suppose|pretend|for example|imagine
 const moneyTerms=/\b(?:dollars?|usd|usdc)\b|\$/i;
 function matchPhrase(text) {
   const phrase=String(text||"").trim();
-  const request=phrase.match(ask);
+  const request=phrase.match(ask) || (/\b(?:help|bills?|grocer(?:y|ies)|rent|expenses?|short|need|offset)\b/i.test(phrase)
+    ? phrase.match(/\bplease\s+send\s+me\b/i) : null);
   if(!request) return null;
   const start=request.index;
   const trailing=phrase.slice(start);
   const boundary=trailing.search(/[.!?;\n]/);
   const segment=boundary<0?trailing:trailing.slice(0,boundary);
+  // Reimbursement is not a voluntary gift request.
+  if (/\b(?:back|repay|reimburse|you\s+(?:owe|bought|ordered)|i\s+(?:paid|covered))\b/i.test(segment)) return null;
   // Restrict inference to exact money in the same speech clause as the ask.
   const found=segment.match(AMOUNT);
   if(!found||!moneyTerms.test(found[0])||found.index>125)return null;
@@ -46,6 +51,7 @@ export function findVoluntaryRequests(transcript,perspective="incoming") {
     const position=text.indexOf(possible.evidence,span.index);
     const prefix=text.slice(Math.max(0,position-80),position).split(/[.!?;\n]/).pop();
     if(negated.test(prefix))continue;
+    if(unsafeMoneyRequestReason({kind:"money",evidence:possible.evidence},text))continue;
     if(result.some(x=>x.amount===possible.amount && x.evidence===possible.evidence))continue;
     result.push({
       kind:"money",direction:perspective==="recording"?"owed_to_me":"i_owe",

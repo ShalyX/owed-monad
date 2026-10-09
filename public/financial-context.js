@@ -1,3 +1,5 @@
+import { unsafeMoneyRequestReason } from "./request-safety.js";
+
 // Financial-context safety pass. This does not add an inbox category.
 // It prevents an amount in a condition, correction, or split total from
 // becoming an actionable payment simply because a small model found "$".
@@ -163,6 +165,8 @@ export function reconcileFinancialContext(items,source,perspective="incoming") {
 }
 export function legacyPaymentWarning(item,source) {
   if(!item||item.kind!=="money")return null;
+  const unsafe = unsafeMoneyRequestReason(item,source);
+  if(unsafe) return unsafe;
   const {conditional,correction,possibleCorrection,split}=inspectFinancialContext(source);
   if(conditional.some(s=>amounts(s.text).some(m=>m.value===item.amount)||
     s.text.toLowerCase().includes(String(item.evidence||"\u0000").toLowerCase()))) {

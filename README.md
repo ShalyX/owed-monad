@@ -1,6 +1,6 @@
 # Owed — From conversation to completion
 
-**Current public HTTPS pilot:** See [PUBLIC_DEMO_RUNBOOK.md](PUBLIC_DEMO_RUNBOOK.md) for the temporary Cloudflare URL retrieval, release safety checks, and what still blocks a stable judge-facing submission. The old localhost SSH tunnel remains available, but public visitors do not depend on the owner's PC.
+**Live public demo (HTTPS):** [owed-monad.tail5a7dd1.ts.net](https://owed-monad.tail5a7dd1.ts.net/). Powered by Tailscale Funnel, so judges do not need a Tailscale account or the owner's Windows PC. This is a testnet pilot; Funnel is in beta and availability depends on our VPS. See [PUBLIC_DEMO_RUNBOOK.md](PUBLIC_DEMO_RUNBOOK.md) for verification and the remaining real-wallet settlement check.
 
 A Monad Testnet MVP: paste messages, record voice, or import a voice note. Local Whisper transcribes speech; the current private VPS uses Qwen2.5 0.5B plus source-grounded safety checks to extract obligations (Hugging Face/Gemma is an optional alternate lane). The user reviews what to complete. For money owed, Owed requests a wallet-signed native Circle USDC transfer on Monad Testnet, then verifies the transaction receipt before marking it settled.
 
@@ -18,12 +18,12 @@ Requires Node.js 22+ and an injected EVM browser wallet for payments.
 4. Open http://localhost:3000.
 5. To run tests, use: npm run check
 
-Without HF_TOKEN, the UI can display an explicitly labeled, nonpayable sample. Live transcription and text extraction need Hugging Face Inference credentials.
+For local mode without `LOCAL_INFERENCE_URL`, analysis requires an HF_TOKEN. The current VPS deployment instead uses a separately authenticated private inference worker, so visitors do **not** need Hugging Face credentials.
 
 ## What is implemented
 
-- Paste any conversation and submit it to Gemma for structured obligation extraction with verbatim supporting quotes.
-- Record microphone audio with MediaRecorder, or import an audio file under 18 MB; use Whisper then Gemma.
+- Paste conversations for source-grounded structured obligation extraction. The live private VPS uses Qwen2.5 0.5B plus deterministic financial-context checks; Hugging Face/Gemma is an optional alternate provider.
+- Record microphone audio with MediaRecorder or import audio under 18 MB; local Whisper transcribes, and Qwen2.5 handles the current VPS inference lane.
 - Store the extracted obligations and source text in browser localStorage, with duplicate-source fingerprints.
 - Split money owed, money owed to you, and ordinary tasks. Manual completion for non-payable items.
 - Block model-generated wallet addresses. The user must independently verify and enter an EVM recipient address.
@@ -46,7 +46,7 @@ Users need testnet MON for gas plus Circle testnet USDC.
 - The server never collects wallet signing credentials, and has no server-side payment execution endpoint.
 - Source evidence must be an exact substring; extracted monetary amount must be explicitly present in that quoted evidence.
 - The app uses browser localStorage, not an auditable server-side ledger; it is not tamper-resistant, cross-device or encrypted.
-- Analysis data/audio goes to Hugging Face. Server does not deliberately store the files, but model-provider processing applies.
+- In the current public demo, analysis data/audio is processed on the private VPS without deliberate server-side storage. In optional Hugging Face mode, model-provider data processing applies. Browser localStorage retains the saved data.
 - Browser wallet confirmations and a local verified-receipt view do not establish legal payment obligations or recipient identity.
 - Testnet only. No real-value transfers supported in this MVP.
 
@@ -67,7 +67,7 @@ Owed was developed by adapting the broad Whisper/Gemma transcription approach fr
 **RPC proof:** `npm run probe:monad` checks chain identity, deployed USDC bytecode and the 6-decimal token interface using a live public Monad Testnet RPC. This is infrastructure verification, NOT a settled payment.
 
 **First actual payment (browser wallet):**
-1. Open `http://localhost:3000`, connect an injected browser EVM wallet (e.g. MetaMask or Rabby) and use Monad Testnet.
+1. Open `https://owed-monad.tail5a7dd1.ts.net/` with an injected browser EVM wallet (e.g. MetaMask or Rabby) and use Monad Testnet. A local development server can alternatively run at `http://localhost:3000`.
 2. Fund the connected address with faucet MON for gas from https://faucet.monad.xyz/ and Circle testnet USDC from https://faucet.circle.com/ (select Monad Testnet). Faucets may require user interaction.
 3. Paste a real small debt message, e.g. `You still owe me 0.01 USDC for coffee.`, and analyze with the configured inference provider (the private VPS uses Qwen2.5). Do not use the nonpayable sample card.
 4. Open Pay, supply a recipient testnet address confirmed independently by the user, check the verification box and approve the exact USDC transfer in the wallet.

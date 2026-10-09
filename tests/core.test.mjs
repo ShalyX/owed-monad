@@ -88,8 +88,9 @@ test("source evidence and wallet authority are enforced", () => {
   assert.equal(x.obligations[0].recipientAddress, "");
   const f = fixture(); f.obligations[0].amount = 1200; f.obligations[1].evidence = "invented";
   const bad = cleanAnalysis(f, TEXT);
-  assert.equal(bad.obligations.length, 2);
-  assert.equal(bad.obligations[0].amount, 12); // recovered from an exact source quote, never the hallucinated 1200
+  assert.equal(bad.obligations.length, 3); // both source-quoted amounts and the independent address request
+  assert.deepEqual(bad.obligations.filter(x => x.kind === "money").map(x => x.amount).sort((a,b)=>a-b),[6,12]);
+  assert.equal(bad.obligations.some(x => x.kind === "task"),true); // 1200 is never accepted
 });
 test("money direction is derived from the exact quote, not a small model guess", () => {
   const item = (evidence) => ({obligations:[{title:"Payment",kind:"money",direction:"i_owe",amount:8,evidence}]});

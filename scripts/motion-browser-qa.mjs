@@ -231,6 +231,26 @@ try{
  const illegalPay=await js("({dialog:document.querySelector('#payDialog').open,notice:document.querySelector('#notice').textContent})");
  console.log("PAY_DIALOG_SECOND_GUARD="+JSON.stringify(illegalPay));
  if(illegalPay.dialog||!illegalPay.notice.includes("condition"))throw Error("Payment dialog bypassed financial context guard");
+ // A financial-help request is a money moment, but must not be labeled as debt
+ // or counted in "YOU OWE". A transfer always requires human review.
+ const voluntaryFixture=[{id:"favor-group",title:"A friend's favor",source:"text",fingerprint:"voluntary-fixture",transcript:"Could I please get a dollar from you? I need help with groceries.",obligations:[
+  {id:"favor-money",kind:"money",direction:"i_owe",intent:"voluntary_request",title:"Asked you for $1",amount:1,evidence:"Could I please get a dollar from you",status:"open",recipientAddress:"",txHash:"",contextNote:"A request for help, not money already owed. Sending is entirely your choice."}
+ ]}];
+ await js("localStorage.setItem('owed-v1-inbox',"+JSON.stringify(JSON.stringify(voluntaryFixture))+");location.reload();true");
+ await sleep(450);
+ for(let i=0;i<30;i++){if(await js("!!document.querySelector('[data-item-id=favor-money]')"))break;await sleep(120)}
+ const voluntaryCard=await js("({label:document.querySelector('[data-item-id=favor-money] .state-pill')?.textContent,category:document.querySelector('[data-item-id=favor-money] .item-category')?.textContent,action:document.querySelector('button[data-action=pay][data-id=favor-money]')?.textContent,open:document.querySelector('#openCount')?.textContent,owed:document.querySelector('#moneyCount')?.textContent})");
+ console.log("VOLUNTARY_NOT_DEBT="+JSON.stringify(voluntaryCard));
+ if(voluntaryCard.label!=="Your choice"||!voluntaryCard.category.includes("Asked you for help")||!voluntaryCard.action.includes("Send by choice")||voluntaryCard.owed!=="$0.00")throw Error("Financial help was presented as an existing debt");
+ await js("document.querySelector('button[data-action=pay][data-id=favor-money]').click();true");
+ const voluntaryDialog=await js("({open:document.querySelector('#payDialog').open,title:document.querySelector('#dialogTitle').textContent,note:document.querySelector('#paymentIntentNote').textContent,hidden:document.querySelector('#paymentIntentNote').classList.contains('hidden'),recipient:document.querySelector('#recipientAddress').value,verified:document.querySelector('#recipientVerified').checked})");
+ console.log("VOLUNTARY_PAYMENT_EXPLICIT="+JSON.stringify(voluntaryDialog));
+ if(!voluntaryDialog.open||voluntaryDialog.title!=="Send $1 by choice"||voluntaryDialog.hidden||!voluntaryDialog.note.includes("don't owe")||voluntaryDialog.recipient||voluntaryDialog.verified)throw Error("Optional request was treated as an authorized transfer");
+ await js("document.querySelector('#confirmPayment').click();true");
+ const voluntaryBlocked=await js("({open:document.querySelector('#payDialog').open,warning:document.querySelector('#paymentNotice').textContent})");
+ console.log("VOLUNTARY_BLANK_ADDRESS_BLOCKED="+JSON.stringify(voluntaryBlocked));
+ if(!voluntaryBlocked.open||!voluntaryBlocked.warning.includes("valid 0x recipient"))throw Error("Missing recipient did not block voluntary payment");
+ await js("document.querySelector('#payDialog').close();true");
  if(errors.length)throw Error("Browser exceptions: "+errors.join("; "));
  console.log("PASS_BROWSER_TASK_MONEY_UNDO_DISCOVERY_MOBILE_REDUCED_MOTION");
 }catch(e){failures++;console.log("BROWSER_QA_FAILURE="+e.message)}

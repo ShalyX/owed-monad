@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import { cleanAnalysis, parseModelOutput, PROMPT, COMPACT_PROMPT } from "./lib/obligations.mjs";
 import { explicitSpokenPayments } from "./lib/spoken-obligations.mjs";
 import { inspectFinancialContext } from "./public/financial-context.js";
+import { findVoluntaryRequests } from "./public/voluntary-request.js";
 import { getChainReceipt } from "./lib/chain-receipts.mjs";
 
 // Pick up a newly saved local token without a server restart; never log it.
@@ -66,10 +67,11 @@ async function chat(text, perspective = "incoming") {
     // Never report "All clear" for a model parsing failure.
     // Only recover exact, explicit payment requests; ungrounded guesses fail.
     const grounded = explicitSpokenPayments(text, perspective);
+    const helpRequests = findVoluntaryRequests(text, perspective);
     const context = inspectFinancialContext(text);
     const financiallyRelevant = context.conditional.length || context.correction ||
       context.possibleCorrection || context.split;
-    if (!grounded.length && !financiallyRelevant) throw Object.assign(new Error("AI could not interpret this message. Review the transcript and try correcting it."), { status: 502 });
+    if (!grounded.length && !helpRequests.length && !financiallyRelevant) throw Object.assign(new Error("AI could not interpret this message. Review the transcript and try correcting it."), { status: 502 });
     const recovered = cleanAnalysis({title:"Payment request to review",summary:"Recovered explicit financial context from the original text.",obligations:[]}, text, "text", perspective);
     recovered.analysisNote = "The AI response was incomplete. " +
       (recovered.analysisNote || "An explicit request was recovered directly from the source text.") +

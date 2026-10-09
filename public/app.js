@@ -138,6 +138,7 @@ async function analyzeAudio(file, context = "incoming", capture = "import") {
   finally { setProcessing(false); }
 }
 function category(x) {
+  if (x.intent === "voluntary_request") return x.direction === "i_owe" ? "Asked you for help" : "You requested help";
   if (x.kind === "money" && x.direction === "i_owe") return "You owe";
   if (x.kind === "money" && x.direction === "owed_to_me") return "Owed to you";
   if (x.kind === "money") return "Uncertain amount";
@@ -160,6 +161,7 @@ function statusFor(x) {
   if (x.status === "dismissed") return ["dismissed","Dismissed · not paid"];
   if (x.status === "done" && x.kind === "task") return ["completed","✓ Task done"];
   if (x.status === "failed") return ["review","Try again"];
+  if (x.intent === "voluntary_request") return ["open",x.direction === "i_owe" ? "Your choice" : "You asked"];
   if (x.kind === "money" && x.direction !== "i_owe") return ["review",x.direction === "owed_to_me" ? "Owed to you" : "Review"];
   return ["open",x.kind === "money" ? "Still open" : "To do"];
 }
@@ -185,7 +187,7 @@ function itemMarkup(x,i=0) {
   } else if (payout) {
     controls = sample
       ? '<span class="sample-tag">✦ Example only · not payable</span>'
-      : '<button class="small-btn solid" data-action="pay" data-id="' + actionId + '">Pay in USDC <span>↗</span></button><button class="small-btn ghost" data-action="dismiss" data-id="' + actionId + '">Dismiss · no payment</button>';
+      : '<button class="small-btn solid" data-action="pay" data-id="' + actionId + '">' + (x.intent === "voluntary_request" ? "Send by choice" : "Pay in USDC") + ' <span>↗</span></button><button class="small-btn ghost" data-action="dismiss" data-id="' + actionId + '">' + (x.intent === "voluntary_request" ? "Pass · no payment" : "Dismiss · no payment") + '</button>';
   } else if (x.kind === "task") {
     controls = '<button class="small-btn solid" data-action="complete" data-id="' + actionId + '">Mark it done ✓</button>';
   } else {
@@ -240,7 +242,7 @@ function updateMetric(id, value) {
 function render() {
   const all = allItems();
   const active = all.filter((x) => !["settled", "done", "dismissed"].includes(x.status));
-  const openMoney = active.filter((x) => x.kind === "money" && x.direction === "i_owe" && x.amount != null && !x.group.isSample && !legacyPaymentWarning(x,x.group?.transcript || ""));
+  const openMoney = active.filter((x) => x.kind === "money" && x.direction === "i_owe" && x.intent !== "voluntary_request" && x.amount != null && !x.group.isSample && !legacyPaymentWarning(x,x.group?.transcript || ""));
   updateMetric("openCount", String(active.length).padStart(2, "0"));
   $("dockCount").textContent = String(active.length);
   $("dockCount").setAttribute("aria-label", active.length + (active.length === 1 ? " open item" : " open items"));
@@ -372,7 +374,11 @@ function payDialog(id) {
   state.paymentId = id;
   $("dialogContextIcon").textContent = momentIcon(x);
   $("dialogContext").textContent = sourceGroup?.title || "Saved conversation";
-  $("dialogTitle").textContent = x.title;
+  $("dialogTitle").textContent = x.intent === "voluntary_request" ? "Send $" + x.amount + " by choice" : x.title;
+  $("paymentIntentNote").textContent = x.intent === "voluntary_request"
+    ? "This person asked for help. You don't owe them this money. Sending USDC is entirely optional."
+    : "";
+  $("paymentIntentNote").classList.toggle("hidden",x.intent !== "voluntary_request");
   $("dialogEvidence").textContent = 'From conversation: “' + x.evidence + '”';
   $("dialogAmount").textContent = money(x.amount);
   $("recipientAddress").value = x.recipientAddress || "";
@@ -498,7 +504,7 @@ async function confirmPayment() {
   if (state.processing) return;
   let units;
   try { units = microUsdc(x.amount); } catch (e) { return showNotice(e.message, true, note); }
-  const approved = window.confirm("Confirm payment on Monad TESTNET\n\n" + money(x.amount) + " USDC\nTo: " + recipient + "\n\nHave you verified this is the intended recipient?");
+  const approved = window.confirm((x.intent === "voluntary_request" ? "Optional help request (not a debt)" : "Confirm payment") + " on Monad TESTNET\n\n" + money(x.amount) + " USDC\nTo: " + recipient + "\n\nHave you verified this is the intended recipient?");
   if (!approved) return;
   $("confirmPayment").disabled = true;
   showNotice("Awaiting wallet authorization. No payment has been sent yet.", false, note);

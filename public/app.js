@@ -11,6 +11,8 @@ import { findSourceAddresses } from "./address-hints.js";
 
 const $ = (id) => document.getElementById(id);
 const KEY = "owed-v1-inbox";
+// A saved browser status is not chain proof. Proofs are session-scoped and rechecked against the public RPC.
+const verifiedReceipts = new Set();
 let restoredLegacyMoneyCount = 0;
 let collapsedDuplicateTaskCount = 0;
 const state = { groups: load(), filter: "all", file: null, recorded: null, recorder: null, chunks: [], timer: null, startedAt: 0, processing: false, paymentId: null, receiptId: null, receiptEpoch: 0, wallet: "", lastVoicePerspective: "incoming" };
@@ -155,8 +157,8 @@ function momentIcon(x) {
   return x.kind === "money" ? "💸" : "✦";
 }
 function statusFor(x) {
-  if (x.status === "settled" && /^0x[a-f\d]{64}$/i.test(x.txHash || "")) return ["verified","✓ Verified onchain"];
-  if (x.status === "settled") return ["review","Receipt needs review"];
+  if (x.status === "settled" && verifiedReceipts.has(x.id)) return ["verified","✓ Verified onchain"];
+  if (x.status === "settled") return ["review","Receipt needs recheck"];
   if (x.status === "pending") return ["pending","⏳ Verifying"];
   if (x.status === "dismissed") return ["dismissed","Dismissed · not paid"];
   if (x.status === "done" && x.kind === "task") return ["completed","✓ Task done"];
@@ -409,6 +411,22 @@ function openReceipt(id) {
   $("receiptDialog").showModal();
   refreshReceipt(id);
 }
+async function verifySavedReceipt(item) {
+  if (!item || item.status !== "settled" || !/^0x[a-fA-F0-9]{64}$/.test(item.txHash || "")) return false;
+  try {
+    const response = await fetch("/api/receipt?tx=" + encodeURIComponent(item.txHash), {
+      headers: { "accept": "application/json" }, signal: AbortSignal.timeout(18000)
+    });
+    if (!response.ok) throw new Error("Receipt lookup unavailable");
+    const valid = !!makeReceiptProof(await response.json(), item);
+    if (valid) verifiedReceipts.add(item.id);
+    else verifiedReceipts.delete(item.id);
+    return valid;
+  } catch {
+    verifiedReceipts.delete(item.id);
+    return false;
+  } finally { render(); }
+}
 async function refreshReceipt(id) {
   const item = itemById(id);
   if (!item || state.receiptId !== id || !$("receiptDialog").open) return;
@@ -433,6 +451,8 @@ async function refreshReceipt(id) {
     if (!current()) return;
     const proof = makeReceiptProof(data, item);
     if (!proof) throw new Error("We could not match a successful Circle USDC Transfer event to this saved payment.");
+    verifiedReceipts.add(item.id);
+    render();
     $("receiptSeal").className = "receipt-seal verified";
     $("receiptSeal").textContent = "✓";
     $("receiptState").textContent = "VERIFIED ON MONAD";
@@ -443,6 +463,8 @@ async function refreshReceipt(id) {
     $("receiptMessage").textContent = "Verified against the recorded transaction: token contract, payer, recipient, amount and Transfer event all match.";
   } catch (error) {
     if (!current()) return;
+    verifiedReceipts.delete(item.id);
+    render();
     $("receiptSeal").className = "receipt-seal unavailable";
     $("receiptSeal").textContent = "!";
     $("receiptState").className = "receipt-state unavailable";
@@ -478,6 +500,7 @@ async function checkReceiptFor(x, loud = true) {
     if (receiptMatches(receipt, x.payer, x.recipientAddress, x.amount)) {
       const wasPending = x.status === "pending";
       x.status = "settled"; x.settledAt = new Date().toISOString(); save(); render();
+      void verifySavedReceipt(x);
       if (wasPending) showSettlementMoment(() => openReceipt(x.id), x.title);
       if (loud) showNotice("Payment settled. Exact USDC Transfer event verified against the onchain receipt.");
       return true;
@@ -671,3 +694,9 @@ render();
 if (restoredLegacyMoneyCount) showNotice("Reopened " + restoredLegacyMoneyCount + " money item(s) previously marked complete without a verified payment. You can now pay or dismiss each one.");
 if (collapsedDuplicateTaskCount) showNotice("Tidied up " + collapsedDuplicateTaskCount + " duplicate open to-do(s) describing an existing money request. Your payments, finished tasks, and receipts were kept.");
 for (const x of allItems().filter((a) => a.status === "pending")) checkReceiptFor(x, false);
+// Limit automatic lookups so restoring a large local inbox cannot exhaust public receipt quotas.
+(async () => {
+  for (const item of allItems().filter((a) => a.status === "settled").slice(0, 8)) {
+    await verifySavedReceipt(itemById(item.id));
+  }
+})();

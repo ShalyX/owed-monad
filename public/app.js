@@ -259,6 +259,7 @@ function render() {
     '<div class="empty"><div class="empty-art"><span class="empty-face">'+avatarSvg("empty-inbox")+'</span><span class="empty-confetti">✦</span><span class="empty-heart">♥</span></div><h3>' + emptyTitle +
     '</h3><p>' + emptyBody + '</p><a class="empty-cta" href="#capture">Add a moment ↗</a></div>';
   document.querySelectorAll(".filter").forEach((b) => b.classList.toggle("active", b.dataset.filter === state.filter));
+  updateWalletNextStep();
 }
 function setMode(mode) {
   document.querySelectorAll(".tab").forEach((b) => {
@@ -477,12 +478,63 @@ async function refreshReceipt(id) {
   }
 }
 
+function payableMoneyItems() {
+  return allItems().filter((x) => x.kind === "money" && x.direction === "i_owe" &&
+    x.amount != null && ["open", "failed"].includes(x.status) && !x.group?.isSample &&
+    !legacyPaymentWarning(x, x.group?.transcript || ""));
+}
+function updateWalletNextStep() {
+  if (!isAddress(state.wallet)) return;
+  const next = payableMoneyItems()[0];
+  $("walletStatusHeadline").textContent = next ? "Your next payment starts here." : "Wallet connected. No unpaid request is ready here.";
+  $("walletStatusNext").textContent = next
+    ? "Review “" + next.title + "” and its evidence. You will still need to verify the recipient and explicitly authorize any transfer."
+    : "No payable money requests are saved in this browser. Paste a genuine conversation and select Find the loose ends.";
+  $("walletNextAction").textContent = next ? "Review money request ↗" : "Add a conversation ↗";
+}
+let walletStatusEpoch = 0;
+async function refreshWalletStatus() {
+  const epoch = ++walletStatusEpoch;
+  const address = state.wallet;
+  const connected = isAddress(address) && !!window.ethereum?.request;
+  $("walletStatus").classList.toggle("hidden", !connected);
+  $("walletBtn").innerHTML = connected
+    ? escapeHTML(address.slice(0, 6) + "…" + address.slice(-4)) + " <span>↗</span>"
+    : 'Connect wallet <span>↗</span>';
+  if (!connected) return;
+  $("walletStatusAddress").textContent = address.slice(0, 8) + "…" + address.slice(-6);
+  updateWalletNextStep();
+  const network = $("walletStatusNetwork");
+  network.classList.remove("wallet-warning");
+  network.textContent = "Checking network and testnet balances…";
+  try {
+    const chain = await window.ethereum.request({ method: "eth_chainId" });
+    if (epoch !== walletStatusEpoch) return;
+    if (typeof chain !== "string" || !/^0x[0-9a-f]+$/i.test(chain) || Number.parseInt(chain, 16) !== 10143) {
+      network.textContent = "Wallet is not on Monad Testnet (10143). Switch networks when you choose to pay; connecting alone never transfers funds.";
+      network.classList.add("wallet-warning");
+      return;
+    }
+    const balances = await getWalletBalances(window.ethereum, address);
+    if (epoch !== walletStatusEpoch) return;
+    const usdc = (Number(balances.usdc) / 1e6).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 });
+    const mon = (Number(balances.mon) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 5 });
+    network.textContent = "Monad Testnet · " + usdc + " USDC · " + mon + " MON for gas (wallet-reported). Connecting never sends funds.";
+  } catch {
+    if (epoch !== walletStatusEpoch) return;
+    network.textContent = "Connected, but the wallet could not read network or balances. Review network and funds when paying.";
+    network.classList.add("wallet-warning");
+  }
+}
+function setWalletAccount(address) {
+  state.wallet = isAddress(address) ? address : "";
+  void refreshWalletStatus();
+}
 async function connectWallet() {
   if (!window.ethereum?.request) throw new Error("Install an EVM wallet (such as MetaMask or Rabby) to pay.");
   const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
   if (!Array.isArray(accounts) || !isAddress(accounts[0])) throw new Error("No wallet account selected.");
-  state.wallet = accounts[0];
-  $("walletBtn").innerHTML = escapeHTML(state.wallet.slice(0, 6) + "…" + state.wallet.slice(-4)) + " <span>↗</span>";
+  setWalletAccount(accounts[0]);
   return state.wallet;
 }
 async function checkReceiptFor(x, loud = true) {
@@ -500,6 +552,7 @@ async function checkReceiptFor(x, loud = true) {
     if (receiptMatches(receipt, x.payer, x.recipientAddress, x.amount)) {
       const wasPending = x.status === "pending";
       x.status = "settled"; x.settledAt = new Date().toISOString(); save(); render();
+      void refreshWalletStatus();
       void verifySavedReceipt(x);
       if (wasPending) showSettlementMoment(() => openReceipt(x.id), x.title);
       if (loud) showNotice("Payment settled. Exact USDC Transfer event verified against the onchain receipt.");
@@ -610,6 +663,16 @@ function wireEvents() {
   });
   $("demoBtn").addEventListener("click", sample);
   $("walletBtn").addEventListener("click", () => connectWallet().catch((e) => showNotice(e.message, true)));
+  $("walletNextAction").addEventListener("click", () => {
+    const next = payableMoneyItems()[0];
+    if (next) {
+      payDialog(next.id);
+      return;
+    }
+    setMode("paste");
+    $("capture").scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
+    $("conversation").focus({ preventScroll: true });
+  });
   $("clearCompleted").addEventListener("click", () => {
     if (!window.confirm("Remove finished non-payment tasks from this browser? Your verified USDC payments and receipts will be kept.")) return;
     state.groups = clearFinishedTasks(state.groups);
@@ -685,12 +748,18 @@ function wireEvents() {
     }
   });
   if (window.ethereum?.on) {
-    window.ethereum.on("accountsChanged", () => { state.wallet = ""; $("walletBtn").textContent = "Connect wallet ↗"; });
-    window.ethereum.on("chainChanged", () => { state.wallet = ""; $("walletBtn").textContent = "Connect wallet ↗"; });
+    window.ethereum.on("accountsChanged", (accounts) => setWalletAccount(Array.isArray(accounts) ? accounts[0] : ""));
+    window.ethereum.on("chainChanged", () => { void refreshWalletStatus(); });
   }
 }
 wireEvents();
 render();
+// Restore a previously authorized account without requesting a new signature or opening the wallet.
+if (window.ethereum?.request) {
+  window.ethereum.request({ method: "eth_accounts" })
+    .then((accounts) => { if (!state.wallet && Array.isArray(accounts) && isAddress(accounts[0])) setWalletAccount(accounts[0]); })
+    .catch(() => {});
+}
 if (restoredLegacyMoneyCount) showNotice("Reopened " + restoredLegacyMoneyCount + " money item(s) previously marked complete without a verified payment. You can now pay or dismiss each one.");
 if (collapsedDuplicateTaskCount) showNotice("Tidied up " + collapsedDuplicateTaskCount + " duplicate open to-do(s) describing an existing money request. Your payments, finished tasks, and receipts were kept.");
 for (const x of allItems().filter((a) => a.status === "pending")) checkReceiptFor(x, false);

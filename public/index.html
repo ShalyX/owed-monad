@@ -78,6 +78,13 @@
     <section class="right-panel" id="my-inbox">
       <div class="inbox-head"><div><span class="section-number">YOUR LITTLE CORNER <span class="inbox-star" aria-hidden="true">✳</span></span><h2>Things to <em>sort out.</em></h2><p class="inbox-subtitle">All the good stuff, without the “wait, who owes who?”</p></div><button class="clear-btn" type="button" id="clearCompleted">Clear finished to-dos</button></div>
       <div class="metrics"><div class="metric metric-open"><span>STILL OPEN <i aria-hidden="true">✷</i></span><strong id="openCount">00</strong><small>On your mind</small></div><div class="metric metric-money"><span>YOU OWE <i aria-hidden="true">✳</i></span><strong id="moneyCount">$0.00</strong><small>Ready to settle</small></div><div class="metric metric-done"><span>WRAPPED UP <i aria-hidden="true">♥</i></span><strong id="doneCount">00</strong><small>Nice work!</small></div></div>
+      <section id="walletStatus" class="wallet-status hidden" aria-live="polite" aria-labelledby="walletStatusLabel">
+        <div class="wallet-status-top"><span id="walletStatusLabel">WALLET CONNECTED · AUTHORIZATION STILL REQUIRED</span><code id="walletStatusAddress"></code></div>
+        <strong id="walletStatusHeadline">Your wallet is ready for review.</strong>
+        <p id="walletStatusNetwork">Checking your network…</p>
+        <p id="walletStatusNext">Payments start from a reviewed money request, never from connecting alone.</p>
+        <button class="wallet-status-action" type="button" id="walletNextAction">Add a conversation ↗</button>
+      </section>
       <div class="inbox-controls"><span>YOUR INBOX <span class="inbox-count-label" id="inboxSummary">ALL MOMENTS</span></span><div class="filters"><button type="button" data-filter="all" class="filter active">All</button><button type="button" data-filter="money" class="filter">Money</button><button type="button" data-filter="task" class="filter">To-dos</button><button type="button" data-filter="settled" class="filter">Receipts</button></div></div>
       <div id="inbox" class="inbox" aria-live="polite"></div>
       <footer class="inbox-footer"><span>✳ Owed helps you remember. You decide what happens.</span><span>Only verified transfers count as paid.</span></footer>

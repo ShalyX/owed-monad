@@ -1,6 +1,7 @@
-import { CHAIN, isAddress, microUsdc, transferData, receiptMatches, switchToMonad, readReceipt, getWalletBalances } from "./payments.js";
+import { CHAIN, isAddress, microUsdc, transferData, switchToMonad, getWalletBalances } from "./payments.js";
 import { completeTask, reopenTask, dismissMoney, reopenDismissed, restoreLegacyMoney, clearFinishedTasks } from "./actions.js";
 import { makeReceiptProof } from "./receipt.js";
+import { validHash, transferClaimed, beginWalletSubmission, walletBroadcast, undoRejectedSubmission, attachRecoveryHash, classifyChainReceipt } from "./payment-recovery.js";
 import { avatarSvg, friendScene } from "./characters.js";
 import { showSettlementMoment } from "./delight.js";
 import { showDiscoveryMoment } from "./discovery.js";
@@ -16,7 +17,7 @@ const KEY = "owed-v1-inbox";
 const verifiedReceipts = new Set();
 let restoredLegacyMoneyCount = 0;
 let collapsedDuplicateTaskCount = 0;
-const state = { groups: load(), filter: "all", file: null, recorded: null, recorder: null, chunks: [], timer: null, startedAt: 0, processing: false, paymentId: null, receiptId: null, receiptEpoch: 0, wallet: "", lastVoicePerspective: "incoming" };
+const state = { groups: load(), filter: "all", file: null, recorded: null, recorder: null, chunks: [], timer: null, startedAt: 0, processing: false, paymentId: null, receiptId: null, receiptEpoch: 0, recoveryId: null, wallet: "", lastVoicePerspective: "incoming" };
 $("friendStage").innerHTML = friendScene();
 $("analysisBuddy").innerHTML = avatarSvg("the-planner");
 const FRIEND_TIPS = [
@@ -170,6 +171,8 @@ function statusFor(x) {
   if (x.status === "settled" && verifiedReceipts.has(x.id)) return ["verified","✓ Verified onchain"];
   if (x.status === "settled") return ["review","Receipt needs recheck"];
   if (x.status === "pending") return ["pending","⏳ Verifying"];
+  if (x.status === "submitting") return ["review","Wallet outcome unknown"];
+  if (x.status === "review") return ["review","Transfer needs review"];
   if (x.status === "dismissed") return ["dismissed","Dismissed · not paid"];
   if (x.status === "done" && x.kind === "task") return ["completed","✓ Task done"];
   if (x.status === "failed") return ["review","Try again"];
@@ -187,7 +190,10 @@ function itemMarkup(x,i=0) {
   const actionId = escapeHTML(x.id);
   let controls = "";
   if (x.status === "pending") {
-    controls = '<button class="small-btn" data-action="check" data-id="' + actionId + '">↻ Check payment</button>';
+    controls = '<button class="small-btn" data-action="check" data-id="' + actionId + '">↻ Check payment</button>' +
+      '<button class="small-btn ghost" data-action="recover" data-id="' + actionId + '">Recovery ↗</button>';
+  } else if (x.status === "submitting" || x.status === "review") {
+    controls = '<button class="small-btn" data-action="recover" data-id="' + actionId + '">Review transfer ↗</button>';
   } else if (x.status === "settled" && /^0x[a-f\d]{64}$/i.test(x.txHash || "")) {
     controls = '<button class="small-btn solid" data-action="receipt" data-id="' + actionId + '">View receipt <span>↗</span></button>';
   } else if (x.status === "dismissed") {
@@ -206,13 +212,15 @@ function itemMarkup(x,i=0) {
     controls = '<button class="small-btn ghost" data-action="dismiss" data-id="' + actionId + '">Dismiss · no payment</button>';
   }
   const price = x.kind === "money" && x.amount != null ? '<strong class="item-price">' + money(x.amount) + '</strong>' : "";
+  const failedHash = x.status === "failed" && validHash(x.lastFailedTxHash)
+    ? '<p class="outcome-note">Last attempted transaction failed onchain. <a href="' + CHAIN.explorer + "/tx/" + encodeURIComponent(x.lastFailedTxHash) + '" target="_blank" rel="noopener noreferrer">View failed transaction ↗</a></p>' : "";
   const meta = x.group.source === "audio" ? "Voice note" : x.group.source === "recording" ? "Your recording" : "Message";
   const avatar = avatarSvg(x.group.id || x.group.fingerprint || x.group.title);
   const source = escapeHTML(x.group.title || "Your conversation");
   const evidenceLabel = x.group.source === "audio" || x.group.source === "recording"
     ? "FROM THE TRANSCRIPT · CHECK THE WORDS" : "FROM YOUR CONVERSATION";
   const statusSummary = x.status === "dismissed" ? '<p class="outcome-note">No USDC payment was made for this item.</p>' : "";
-  const contextMessage = reviewWarning || x.contextNote || "";
+  const contextMessage = reviewWarning || x.reviewReason || x.contextNote || "";
   const contextMarkup = contextMessage ? '<p class="financial-context-note">'+escapeHTML(contextMessage)+'</p>' : "";
   return '<article class="obligation status-'+statusKey+'" data-item-id="'+actionId+'" tabindex="-1" style="--i:'+Math.min(i,15)+'">'+
     '<div class="card-top"><div class="item-icon" aria-hidden="true">'+momentIcon(x)+'</div><div class="card-titles"><div class="item-title">'+escapeHTML(x.title)+'</div>'+
@@ -222,7 +230,7 @@ function itemMarkup(x,i=0) {
     '<p class="item-evidence">“'+escapeHTML(x.evidence)+'”</p>'+contextMarkup+'</div><span class="story-spark" aria-hidden="true">✧</span></div>'+
     '<div class="card-bottom"><div class="item-category"><span class="kind-dot"></span>'+escapeHTML(category(x))+
     (sample ? ' <span class="sample-tag">EXAMPLE</span>' : '')+'</div><div class="item-actions">'+controls+'</div></div>'+
-    statusSummary+'</article>';
+    statusSummary+failedHash+'</article>';
 }
 function focusObligation(id) {
   if (!id) return false;
@@ -259,7 +267,7 @@ function render() {
   $("dockCount").textContent = String(active.length);
   $("dockCount").setAttribute("aria-label", active.length + (active.length === 1 ? " open item" : " open items"));
   updateMetric("moneyCount", money(openMoney.reduce((s, x) => s + x.amount, 0)));
-  updateMetric("doneCount", String(all.filter((x) => x.status === "settled" || (x.kind === "task" && x.status === "done")).length).padStart(2, "0"));
+  updateMetric("doneCount", String(all.filter((x) => (x.status === "settled" && verifiedReceipts.has(x.id)) || (x.kind === "task" && x.status === "done")).length).padStart(2, "0"));
   const shown = all.filter((x) => state.filter === "all" || (state.filter === "settled" ? x.kind === "money" && x.status === "settled" : x.kind === state.filter));
   $("inboxSummary").textContent = state.filter === "settled" ? "YOUR RECEIPTS" : shown.length + (shown.length === 1 ? " MOMENT" : " MOMENTS");
   const inbox = $("inbox");
@@ -429,7 +437,7 @@ async function verifySavedReceipt(item) {
       headers: { "accept": "application/json" }, signal: AbortSignal.timeout(18000)
     });
     if (!response.ok) throw new Error("Receipt lookup unavailable");
-    const valid = !!makeReceiptProof(await response.json(), item);
+    const valid = !transferClaimed(state.groups, item.txHash, item.id) && !!makeReceiptProof(await response.json(), item);
     if (valid) verifiedReceipts.add(item.id);
     else verifiedReceipts.delete(item.id);
     return valid;
@@ -460,7 +468,7 @@ async function refreshReceipt(id) {
     if (!response.ok) throw new Error("Could not reach Monad Testnet to verify this receipt.");
     const data = await response.json();
     if (!current()) return;
-    const proof = makeReceiptProof(data, item);
+    const proof = transferClaimed(state.groups, item.txHash, item.id) ? null : makeReceiptProof(data, item);
     if (!proof) throw new Error("We could not match a successful Circle USDC Transfer event to this saved payment.");
     verifiedReceipts.add(item.id);
     render();
@@ -548,78 +556,166 @@ async function connectWallet() {
   return state.wallet;
 }
 async function checkReceiptFor(x, loud = true) {
-  if (!window.ethereum?.request) {
-    if (loud) showNotice("Connect the wallet used for the transaction to check its receipt.", true);
-    return false;
-  }
-  if (!x.txHash || !isAddress(x.payer) || !isAddress(x.recipientAddress)) return false;
+  // Recovery never depends on the browser wallet staying connected or on the
+  // user remaining on Monad. A saved hash is a pointer, not proof of payment.
+  if (!x || x.status !== "pending" || !validHash(x.txHash) ||
+      !isAddress(x.payer) || !isAddress(x.recipientAddress)) return false;
   try {
-    const receipt = await readReceipt(window.ethereum, x.txHash);
-    if (!receipt) {
-      if (loud) showNotice("Transaction still pending on Monad Testnet. You can check again.", false);
+    const response = await fetch("/api/receipt?tx=" + encodeURIComponent(x.txHash), {
+      headers: { "accept": "application/json" }, signal: AbortSignal.timeout(18000)
+    });
+    if (!response.ok) throw new Error("Monad receipt service is temporarily unavailable. No new payment is needed.");
+    const data = await response.json();
+    if (x.status !== "pending") return false;
+    const decision = transferClaimed(state.groups, x.txHash, x.id) ? "mismatch" : classifyChainReceipt(data, x);
+    if (decision === "pending") {
+      if (loud) showNotice("The transaction is still pending. Keep the hash and check again; don't pay twice.");
       return false;
     }
-    if (receiptMatches(receipt, x.payer, x.recipientAddress, x.amount)) {
+    if (decision === "settled") {
       const wasPending = x.status === "pending";
-      x.status = "settled"; x.settledAt = new Date().toISOString(); save(); render();
+      x.status = "settled";
+      x.settledAt = new Date().toISOString();
+      delete x.reviewReason;
+      save(); render();
       void refreshWalletStatus();
       void verifySavedReceipt(x);
-      if (wasPending) showSettlementMoment(() => openReceipt(x.id), x.title);
-      if (loud) showNotice("Payment settled. Exact USDC Transfer event verified against the onchain receipt.");
+      if (wasPending && loud) showSettlementMoment(() => openReceipt(x.id), x.title);
+      if (loud) showNotice("Verified Circle USDC transfer on Monad. Your obligation is settled.");
       return true;
     }
-    if (receipt.status === "0x0") {
-      x.status = "failed"; x.txHash = ""; save(); render();
-      if (loud) showNotice("Transaction failed onchain. Nothing was marked as settled.", true);
+    if (decision === "failed") {
+      x.lastFailedTxHash = x.txHash;
+      x.status = "failed";
+      x.txHash = "";
+      x.reviewReason = "Onchain execution failed. No payment was completed.";
+      save(); render();
+      showNotice("The signed transaction failed onchain. No payment was recorded. Review the failed hash before retrying.", true);
       return false;
     }
-    if (loud) showNotice("Receipt did not match the expected token, sender, recipient or amount. Payment remains unverified.", true);
+    // A mined transaction with the wrong token, payer, destination, amount,
+    // input or log is never reclassified as paid and never automatically retried.
+    x.status = "review";
+    x.reviewReason = "Onchain transaction did not match this obligation. Review the hash; do not send again automatically.";
+    save(); render();
+    showNotice(x.reviewReason, true);
     return false;
-  } catch (err) { if (loud) showNotice(err.message, true); return false; }
+  } catch (err) {
+    if (loud) showNotice((err.message || "Receipt check unavailable.") + " Payment remains pending; don't resend.", true);
+    return false;
+  }
 }
 async function confirmPayment() {
   const x = itemById(state.paymentId);
   const note = $("paymentNotice");
   if (!x || !["open", "failed"].includes(x.status)) return;
   const sourceGroup = state.groups.find(group => group.obligations?.some(item => item.id === x.id));
-  const contextWarning = legacyPaymentWarning(x,sourceGroup?.transcript || "");
-  if (contextWarning) return showNotice(contextWarning,true,note);
+  const contextWarning = legacyPaymentWarning(x, sourceGroup?.transcript || "");
+  if (contextWarning) return showNotice(contextWarning, true, note);
   const recipient = $("recipientAddress").value.trim();
   if (!isAddress(recipient)) return showNotice("Enter a valid 0x recipient address.", true, note);
-  if (!$("recipientVerified").checked) return showNotice("You must independently verify the recipient address before sending.", true, note);
+  if (!$("recipientVerified").checked) return showNotice("Independently verify the recipient before sending.", true, note);
   if (state.processing) return;
   let units;
   try { units = microUsdc(x.amount); } catch (e) { return showNotice(e.message, true, note); }
-  const approved = window.confirm((x.intent === "voluntary_request" ? "Optional help request (not a debt)" : "Confirm payment") + " on Monad TESTNET\n\n" + money(x.amount) + " USDC\nTo: " + recipient + "\n\nHave you verified this is the intended recipient?");
+  const approved = window.confirm((x.intent === "voluntary_request" ? "Optional help request (not a debt)" : "Confirm payment") +
+    " on Monad TESTNET\n\n" + money(x.amount) + " USDC\nTo: " + recipient +
+    "\n\nHave you verified this is the intended recipient?");
   if (!approved) return;
   $("confirmPayment").disabled = true;
-  showNotice("Awaiting wallet authorization. No payment has been sent yet.", false, note);
+  showNotice("Preparing wallet authorization. Nothing has been sent.", false, note);
+  let walletRequestStarted = false;
   try {
     const from = await connectWallet();
     if (from.toLowerCase() === recipient.toLowerCase()) throw new Error("Self-payments are disabled.");
     await switchToMonad(window.ethereum);
     const balances = await getWalletBalances(window.ethereum, from);
-    if (balances.usdc < units) throw new Error("Insufficient testnet USDC. Use Circle's Monad Testnet faucet linked below.");
-    if (balances.mon <= 0n) throw new Error("No testnet MON for gas. Use the Monad faucet linked below.");
+    if (balances.usdc < units) throw new Error("Insufficient testnet USDC. Fund the wallet before paying.");
+    if (balances.mon <= 0n) throw new Error("Insufficient testnet MON for gas.");
+    // Persist the intended sender and recipient BEFORE opening the wallet
+    // confirmation. A tab close must not reopen another Send button.
+    if (!beginWalletSubmission(x, from, recipient)) throw new Error("This item is no longer available for a new payment.");
+    walletRequestStarted = true;
+    save(); render();
+    showNotice("Approve or reject in your wallet. If interrupted, use Review transfer before sending again.", false, note);
     const txHash = await window.ethereum.request({
       method: "eth_sendTransaction",
       params: [{ from, to: CHAIN.usdc, value: "0x0", data: transferData(recipient, x.amount) }]
     });
-    if (!/^0x[a-fA-F0-9]{64}$/.test(txHash)) throw new Error("Wallet returned no valid transaction hash.");
-    x.status = "pending"; x.txHash = txHash; x.recipientAddress = recipient; x.payer = from;
-    x.submittedAt = new Date().toISOString(); save(); render();
+    if (!walletBroadcast(x, txHash)) throw new Error("Wallet returned no valid transaction hash. Check wallet history before trying again.");
+    save(); render();
     $("payDialog").close();
-    showNotice("Transaction submitted. Waiting for a verified USDC receipt…");
+    showNotice("Transaction submitted. The hash is saved; confirmation can resume after a refresh.");
     for (let i = 0; i < 25 && x.status === "pending"; i++) {
       await new Promise((resolve) => setTimeout(resolve, 2200));
       if (await checkReceiptFor(x, false)) {
-        showNotice("Verified payment confirmed on Monad Testnet. View the onchain receipt in your inbox.");
+        showNotice("Verified on Monad Testnet. View the receipt in your inbox.");
         break;
       }
     }
-    if (x.status === "pending") showNotice("Still awaiting a matching receipt. You can check again from the inbox.");
-  } catch (e) { showNotice(e.message || "Payment request failed.", true, note); }
-  finally { $("confirmPayment").disabled = false; }
+    if (x.status === "pending") showNotice("Still pending. Keep your hash and select Check payment later; no additional transfer is needed.");
+  } catch (e) {
+    if (walletRequestStarted && x.status === "submitting") {
+      const rejected = String(e?.code ?? e?.data?.code ?? "") === "4001" ||
+        /user (?:rejected|denied|cancelled|canceled)/i.test(String(e?.message || ""));
+      if (rejected) {
+        undoRejectedSubmission(x); save(); render();
+        showNotice("Wallet authorization was rejected. No transaction hash was issued.", true, note);
+      } else {
+        save(); render();
+        showNotice("Wallet outcome is uncertain. Check the wallet's recent activity and use Review transfer to reconcile any hash BEFORE another payment. " + (e.message || ""), true, note);
+      }
+    } else showNotice(e.message || "Payment preflight failed; no transaction was requested.", true, note);
+  } finally { $("confirmPayment").disabled = false; }
+}
+function openRecoveryDialog(id) {
+  const item = itemById(id);
+  if (!item || item.kind !== "money" || !["submitting","pending","review"].includes(item.status)) return;
+  state.recoveryId = id;
+  $("recoveryTitle").textContent = "Recover “" + item.title + "”";
+  $("recoveryDetails").textContent = money(item.amount) + " USDC · From " + (item.payer || "—") +
+    " · To " + (item.recipientAddress || "—") +
+    ". Only an exact matching Circle USDC transfer can settle this obligation.";
+  $("recoveryHash").value = item.txHash || "";
+  $("recoveryNoSend").classList.toggle("hidden", item.status !== "submitting" || !!item.txHash);
+  $("recoveryLink").href = item.txHash ? CHAIN.explorer + "/tx/" + encodeURIComponent(item.txHash) : CHAIN.explorer;
+  $("recoveryLink").textContent = item.txHash ? "View saved transaction ↗" : "Check wallet activity in explorer ↗";
+  hideNotice($("recoveryNotice"));
+  $("recoveryDialog").showModal();
+}
+async function verifyRecoveredHash() {
+  const item = itemById(state.recoveryId);
+  if (!item) return;
+  const hash = $("recoveryHash").value.trim();
+  if (!validHash(hash)) return showNotice("Paste the complete 0x transaction hash from your wallet or explorer.", true, $("recoveryNotice"));
+  if (transferClaimed(state.groups, hash, item.id)) return showNotice("That transaction hash is already assigned to another money item in this inbox.", true, $("recoveryNotice"));
+  if (!attachRecoveryHash(item, hash, state.groups)) return showNotice("Cannot attach this hash to the saved payment details.", true, $("recoveryNotice"));
+  save(); render();
+  $("recoveryVerify").disabled = true;
+  try {
+    const settled = await checkReceiptFor(item, false);
+    if (settled) {
+      $("recoveryDialog").close();
+      showNotice("Recovered and independently verified the original USDC transfer. No second payment.");
+    } else {
+      openRecoveryDialogAfterCheck(item);
+    }
+  } finally { $("recoveryVerify").disabled = false; }
+}
+function openRecoveryDialogAfterCheck(item) {
+  if (item.status === "pending") showNotice("No receipt yet or network unavailable. The hash is saved; check again later. Do not resend.", false, $("recoveryNotice"));
+  else if (item.status === "failed") showNotice("Onchain transaction failed; no payment recorded. Review the saved failed hash before a new attempt.", true, $("recoveryNotice"));
+  else showNotice("This hash did not match the intended payment. Owed did not mark it paid. Review before any new transfer.", true, $("recoveryNotice"));
+  $("recoveryNoSend").classList.add("hidden");
+}
+function abandonUnknownSubmission() {
+  const item = itemById(state.recoveryId);
+  if (!item || item.status !== "submitting" || item.txHash) return;
+  if (!window.confirm("Only continue if you checked your wallet and explorer and confirmed NO transfer was broadcast. If you are unsure, cancel and recover the transaction instead.\n\nReset this payment to unpaid?")) return;
+  if (!undoRejectedSubmission(item)) return;
+  save(); render();
+  $("recoveryDialog").close();
+  showNotice("Returned this obligation to unpaid. No transaction has been marked verified.");
 }
 function animateAction(button, id) {
   const card = button.closest(".obligation");
@@ -705,6 +801,7 @@ function wireEvents() {
     if (!item) return;
     if (btn.dataset.action === "pay") return payDialog(item.id);
     if (btn.dataset.action === "check") return checkReceiptFor(item);
+    if (btn.dataset.action === "recover") return openRecoveryDialog(item.id);
     if (btn.dataset.action === "receipt") return openReceipt(item.id);
     if (btn.dataset.action === "complete") {
       if (!completeTask(item)) return showNotice("Only non-payment tasks can be marked completed.", true);
@@ -736,6 +833,9 @@ function wireEvents() {
     }
   });
   $("confirmPayment").addEventListener("click", confirmPayment);
+  $("recoveryVerify").addEventListener("click", verifyRecoveredHash);
+  $("recoveryNoSend").addEventListener("click", abandonUnknownSubmission);
+  $("recoveryDialog").addEventListener("close", () => { state.recoveryId = null; });
   $("recipientAddress").addEventListener("input", () => {
     $("recipientVerified").checked = false;
     const panel = $("sourceAddressPanel");
@@ -773,6 +873,7 @@ if (window.ethereum?.request) {
 if (restoredLegacyMoneyCount) showNotice("Reopened " + restoredLegacyMoneyCount + " money item(s) previously marked complete without a verified payment. You can now pay or dismiss each one.");
 if (collapsedDuplicateTaskCount) showNotice("Tidied up " + collapsedDuplicateTaskCount + " duplicate open to-do(s) describing an existing money request. Your payments, finished tasks, and receipts were kept.");
 for (const x of allItems().filter((a) => a.status === "pending")) checkReceiptFor(x, false);
+if (allItems().some((a) => a.status === "submitting")) showNotice("A previous wallet authorization was interrupted. Review your wallet history and use Review transfer before trying to pay again.");
 // Limit automatic lookups so restoring a large local inbox cannot exhaust public receipt quotas.
 (async () => {
   for (const item of allItems().filter((a) => a.status === "settled").slice(0, 8)) {

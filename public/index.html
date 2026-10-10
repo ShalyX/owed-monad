@@ -125,6 +125,20 @@
   <button id="confirmPayment" type="button" class="action-btn">Review & send USDC ↗</button>
   <p class="dialog-bottom">TESTNET USDC HAS NO REAL-WORLD VALUE · NO AUTOMATIC PAYMENTS</p>
 </dialog>
+<dialog id="recoveryDialog" class="pay-dialog" aria-labelledby="recoveryTitle">
+  <form method="dialog"><button aria-label="Close recovery" class="close-dialog" value="cancel">×</button></form>
+  <div class="dialog-eyebrow">PAYMENT RECOVERY / MONAD TESTNET</div>
+  <h3 id="recoveryTitle">Review your transfer</h3>
+  <p class="dialog-description" id="recoveryDetails"></p>
+  <p class="dialog-note">A wallet prompt might have been approved before this tab closed. Check wallet history before trying to pay again. Rechecking never sends money.</p>
+  <label class="field-label" for="recoveryHash">TRANSACTION HASH (0x…)</label>
+  <input id="recoveryHash" type="text" autocomplete="off" spellcheck="false" placeholder="Paste the transaction hash from your wallet" maxlength="66">
+  <p><a id="recoveryLink" href="https://testnet.monadvision.com/" target="_blank" rel="noopener noreferrer">Check wallet activity in explorer ↗</a></p>
+  <p id="recoveryNotice" class="notice hidden" role="status"></p>
+  <button id="recoveryVerify" type="button" class="action-btn">Verify saved transfer ↗</button>
+  <button id="recoveryNoSend" type="button" class="small-btn">I checked: no transfer was sent</button>
+  <p class="dialog-bottom">Only a matching onchain USDC transfer can settle an obligation. Never send again while a payment outcome is unknown.</p>
+</dialog>
 <dialog id="receiptDialog" class="receipt-dialog" aria-labelledby="receiptHeading">
   <div class="receipt-modal-head">
     <span class="receipt-brand"><span class="receipt-brand-dot"></span> OWED / PAYMENT RECORD</span>

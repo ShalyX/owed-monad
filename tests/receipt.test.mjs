@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { getChainReceipt, isReceiptHash } from "../lib/chain-receipts.mjs";
 import { makeServer } from "../server.mjs";
 import { makeReceiptProof } from "../public/receipt.js";
-import { CHAIN, microUsdc } from "../public/payments.js";
+import { CHAIN, microUsdc, transferData } from "../public/payments.js";
 
 const hash = "0x" + "a".repeat(64);
 const sender = "0x" + "1".repeat(40);
@@ -16,12 +16,14 @@ const receipt = {
   logs: [{address: CHAIN.usdc, topics: [transfer, topic(sender), topic(recipient)], data: "0x"+microUsdc("0.01").toString(16)}]
 };
 const item = {status:"settled",kind:"money",amount:0.01,txHash:hash,payer:sender,recipientAddress:recipient};
+const transaction = {hash,from:sender,to:CHAIN.usdc,input:transferData(recipient,0.01),blockHash:receipt.blockHash};
 const response = (result) => ({ok:true,json:async() => ({jsonrpc:"2.0",id:1,result})});
 const stubRpc = async (url,req) => {
   assert.equal(url, "https://rpc.example.test");
   const body = JSON.parse(req.body);
   if (body.method==="eth_chainId") return response("0x279f");
   if (body.method==="eth_getTransactionReceipt") { assert.equal(body.params[0],hash); return response(receipt); }
+  if (body.method==="eth_getTransactionByHash") { assert.equal(body.params[0],hash); return response(transaction); }
   if (body.method==="eth_getBlockByNumber") { assert.equal(body.params[0],receipt.blockNumber); return response({hash:receipt.blockHash,timestamp:"0x67900000"}); }
   throw Error("Unexpected RPC "+body.method);
 };
@@ -38,7 +40,7 @@ test("receipt RPC adapter retrieves Monad chain, mined receipt and matching bloc
   assert.equal(proof.timestamp,Number(BigInt("0x67900000"))*1000);
 });
 test("receipt cannot be shown verified for wrong chain, wrong token or wrong Transfer",async()=>{
-  const result={chainId:"0x279f",receipt,blockTimestamp:"0x67900000"};
+  const result={chainId:"0x279f",receipt,transaction,blockTimestamp:"0x67900000"};
   assert.equal(makeReceiptProof({...result,chainId:"0x1"},item),null);
   assert.equal(makeReceiptProof(result,{...item,status:"dismissed"}),null);
   assert.equal(makeReceiptProof(result,{...item,amount:12}),null);
@@ -48,6 +50,9 @@ test("receipt cannot be shown verified for wrong chain, wrong token or wrong Tra
   assert.equal(makeReceiptProof({...result,receipt:{...receipt,status:"0x0"}},item),null);
   assert.equal(makeReceiptProof({...result,receipt:{...receipt,to:sender}},item),null);
   assert.equal(makeReceiptProof({...result,receipt:{...receipt,logs:[]}},item),null);
+  assert.equal(makeReceiptProof({...result,transaction:null},item),null);
+  assert.equal(makeReceiptProof({...result,transaction:{...transaction,to:sender}},item),null);
+  assert.equal(makeReceiptProof({...result,transaction:{...transaction,input:transferData(sender,0.01)}},item),null);
 });
 test("RPC receipt lookup refuses invalid hashes and fake receipts",async()=>{
   assert.equal(isReceiptHash(hash),true);
@@ -55,7 +60,7 @@ test("RPC receipt lookup refuses invalid hashes and fake receipts",async()=>{
   await assert.rejects(()=>getChainReceipt("garbage",()=>{throw Error("RPC should not be called")}),/Invalid transaction hash/);
   const fake = async (url,req) => {
     const method=JSON.parse(req.body).method;
-    return response(method==="eth_chainId"?"0x279f":{...receipt,transactionHash:"0x"+"c".repeat(64)});
+    return response(method==="eth_chainId"?"0x279f":method==="eth_getTransactionReceipt"?{...receipt,transactionHash:"0x"+"c".repeat(64)}:transaction);
   };
   await assert.rejects(()=>getChainReceipt(hash,fake),/mismatched transaction receipt/);
 });
@@ -75,7 +80,7 @@ test("missing transactions, wrong network and mismatched block hashes cannot for
   await assert.rejects(()=>getChainReceipt(hash,async()=>response("0x1")),/chain mismatch/);
   const wrongBlock = await getChainReceipt(hash,async(url,req)=>{
     const method=JSON.parse(req.body).method;
-    return response(method==="eth_chainId"?"0x279f":method==="eth_getTransactionReceipt"?receipt:{hash:"0x"+"d".repeat(64),timestamp:"0x67900000"});
+    return response(method==="eth_chainId"?"0x279f":method==="eth_getTransactionReceipt"?receipt:method==="eth_getTransactionByHash"?transaction:{hash:"0x"+"d".repeat(64),timestamp:"0x67900000"});
   });
   assert.equal(wrongBlock.blockTimestamp,null);
 });

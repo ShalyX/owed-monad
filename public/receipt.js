@@ -1,4 +1,5 @@
 import { CHAIN, receiptMatches, isAddress } from "./payments.js";
+import { classifyChainReceipt } from "./payment-recovery.js";
 
 export function makeReceiptProof(data, obligation) {
   if (!data || !obligation || typeof obligation.txHash !== "string") return null;
@@ -9,7 +10,8 @@ export function makeReceiptProof(data, obligation) {
   if (obligation.status !== "settled") return null;
   const receipt = data.receipt;
   if (!receipt || String(receipt.transactionHash || "").toLowerCase() !== obligation.txHash.toLowerCase()) return null;
-  if (!receiptMatches(receipt, obligation.payer, obligation.recipientAddress, obligation.amount)) return null;
+  if (!receiptMatches(receipt, obligation.payer, obligation.recipientAddress, obligation.amount) ||
+      classifyChainReceipt(data, obligation) !== "settled") return null;
   return {
     txHash: obligation.txHash,
     from: obligation.payer,

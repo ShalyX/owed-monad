@@ -29,11 +29,16 @@ function statements(text) {
 }
 const conditionPattern=/\b(?:if|unless|once|after|provided(?: that)?|as long as|only if|when)\b/i;
 const paymentCue=/\b(?:owe|pay|send|transfer|repay|refund|payment|share)\b/i;
+function isMaterialCondition(sentence) {
+  const relevant=String(sentence||"").replace(
+    /\bwhen\s+you\s+get\s+(?:a|the)\s+chance\b|\bwhen\s+you(?:'re|\s+are)\s+free\b|\bwhen\s+you\s+can\b/gi,"");
+  return conditionPattern.test(relevant);
+}
 function conditionalSegments(text) {
   const parts=statements(text);
-  const found=parts.filter(s=>conditionPattern.test(s.text)&&paymentCue.test(s.text)&&amounts(s.text).length);
+  const found=parts.filter(s=>isMaterialCondition(s.text)&&paymentCue.test(s.text)&&amounts(s.text).length);
   for(let i=0;i<parts.length;i++) {
-    if(!conditionPattern.test(parts[i].text)||amounts(parts[i].text).length)continue;
+    if(!isMaterialCondition(parts[i].text)||amounts(parts[i].text).length)continue;
     const before=parts[i-1],after=parts[i+1];
     for(const neighbor of [before,after]) {
       if(neighbor && paymentCue.test(neighbor.text)&&amounts(neighbor.text).length &&
@@ -81,7 +86,7 @@ function findSplit(text) {
   const evidenceStart=Math.max(0,s.index-48);
   const evidence=text.slice(evidenceStart,evidenceStart+260).trim();
   const directShare=/\b(?:you\s+(?:still\s+)?owe\s+me\s+(?:your\s+)?share|(?:send|pay|transfer)\s+me\s+(?:your\s+|the\s+)?share|(?:could|can)\s+you\s+(?:please\s+)?(?:send|pay)\s+me\s+(?:your\s+)?share)\b/i.test(evidence);
-  const directAmount=/\b(?:you\s+(?:still\s+)?owe\s+me|(?:send|pay|transfer)\s+me)\s+\$\s*\d/i.test(evidence);
+  const directAmount=/\b(?:you\s+(?:still\s+)?owe\s+me|(?:send|pay|transfer)\s+me)\s+(?:your\s+)?\$\s*\d/i.test(evidence);
   const num=amounts(text);
   const exactShare=s.count ? Math.round((s.total*1000000)/s.count) : null;
   const exact=Number.isSafeInteger(exactShare) &&
@@ -91,7 +96,7 @@ function findSplit(text) {
   const unrelated=monetaryValues.some(v=>v!==s.total && v!==share);
   const explicitPerPerson=directAmount&&monetaryValues.some(v=>v===share);
   return {...s,share,directShare,explicitPerPerson,
-    unambiguous:found.length===1&&num.length<=2&&!unrelated&&share!==null&&
+    unambiguous:found.length===1&&new Set(num.map(x=>x.value)).size<=2&&!unrelated&&share!==null&&
       (directShare||explicitPerPerson),
     evidence};
 }
@@ -99,7 +104,7 @@ function condNote(){return "This payment depends on a condition. Confirm it happ
 export function inspectFinancialContext(text) {
   const source=String(text||"").trim().slice(0,20000);
   const correction=findCorrection(source);
-  const possibleCorrection=!correction && amounts(source).length>=2 &&
+  const possibleCorrection=!correction && !/\b(?:never\s*mind|nevermind|my\s+treat|don't\s+send|do\s+not\s+send)\b/i.test(source) && amounts(source).length>=2 &&
     /\b(?:actually|correction|instead|rather|scratch that|changed? to|revised? to|make (?:it|that)|wait[,!]?|no[,!])\b/i.test(source);
   return {conditional:conditionalSegments(source),correction,possibleCorrection,split:findSplit(source)};
 }

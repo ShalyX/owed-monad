@@ -2,7 +2,7 @@ import { sourceStatements } from "./source-statements.js";
 
 // Conservative recovery of distinct non-money instructions missed by a tiny AI.
 // Only directly requested, source-quoted actions. Never create a task for paying money.
-const sendItem=/\b(?:(?:also|please)\s+)*(?:send|share|forward)\s+(?:me\s+)?(?:the\s+|your\s+|that\s+)?(?:[a-z'-]+\s+){0,3}(?:address|link|location|map\s+pin|photo|picture|file|receipt|screenshot|document)\b/i;
+const sendItem=/\b(?:(?:also|please)\s+)*(?:send|share|forward)\s+(?:me\s+)?(?:the\s+|your\s+|that\s+)?(?:[a-z'-]+\s+){0,3}(?:address|link|location|map\s+pin|photo|picture|file|receipt|screenshot|document|details)\b/i;
 const remind=/\b(?:also\s+)?remind\s+me\s+to\s+[a-z][a-z' -]{3,85}/i;
 const nonAction=/\b(?:if|suppose|imagine|hypothetically|for example|quoted|someone said)\b/i;
 const paymentMention=/\$\s*\d|\b(?:usdc|dollars?|repay|reimburse)\b/i;

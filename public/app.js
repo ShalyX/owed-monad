@@ -6,6 +6,7 @@ import { showSettlementMoment } from "./delight.js";
 import { showDiscoveryMoment } from "./discovery.js";
 import { showActionMoment } from "./moments.js";
 import { removeShadowPaymentTasks } from "./obligation-dedupe.js";
+import { missingObligations } from "./obligation-merge.js";
 import { legacyPaymentWarning } from "./financial-context.js";
 import { findSourceAddresses } from "./address-hints.js";
 
@@ -90,8 +91,17 @@ function showTranscriptReview(transcript, perspective="incoming") {
 }
 function addGroup(group) {
   if (!Array.isArray(group.obligations)) throw new Error("Invalid obligation data.");
-  if (state.groups.some((g) => g.fingerprint === group.fingerprint)) {
-    showNotice("This conversation is already in your inbox. No duplicates added.");
+  const savedGroup = state.groups.find((g) => g.fingerprint === group.fingerprint);
+  if (savedGroup) {
+    const recovered = missingObligations(savedGroup, group);
+    if (!recovered.length) return showNotice("This conversation is already in your inbox. No duplicates added.");
+    savedGroup.obligations.unshift(...recovered);
+    save();
+    render();
+    showNotice("Rechecked this conversation and recovered " + recovered.length +
+      (recovered.length === 1 ? " previously missed item." : " previously missed items.") +
+      " Existing tasks, receipts and decisions were kept.");
+    focusObligation(recovered[0].id);
     return;
   }
   state.groups.unshift(group);

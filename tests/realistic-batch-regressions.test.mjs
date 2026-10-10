@@ -19,6 +19,7 @@ test("split dinner $60 among 3, $20 repeated and 'when you're free' yields one $
  const r=evaluate(text);
  assert.deepEqual(due(r).map(x=>x.amount),[20],JSON.stringify(r));
  assert.equal(money(r).length,1);
+ assert.match(due(r)[0].evidence,/^Heyy, the dinner bill came to \$60/i);
 });
 test("approximate voluntary help request does not produce a second money card from model filler",()=>{
  const text="Guy abeg, you fit help me with like $5? 😭 I'm trying to sort out transport for tomorrow and I'm a bit short. If you can't, no wahala at all. I'll pay you back next week if you send it.";

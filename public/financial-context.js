@@ -83,7 +83,7 @@ function findSplit(text) {
   }).filter(Boolean);
   if(!found.length)return null;
   const s=found[0];
-  const evidenceStart=Math.max(0,s.index-48);
+  const evidenceStart=text.length<=260?0:Math.max(0,s.index-48);
   const evidence=text.slice(evidenceStart,evidenceStart+260).trim();
   const directShare=/\b(?:you\s+(?:still\s+)?owe\s+me\s+(?:your\s+)?share|(?:send|pay|transfer)\s+me\s+(?:your\s+|the\s+)?share|(?:could|can)\s+you\s+(?:please\s+)?(?:send|pay)\s+me\s+(?:your\s+)?share)\b/i.test(evidence);
   const directAmount=/\b(?:you\s+(?:still\s+)?owe\s+me|(?:send|pay|transfer)\s+me)\s+(?:your\s+)?\$\s*\d/i.test(evidence);

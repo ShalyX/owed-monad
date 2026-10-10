@@ -1,3 +1,5 @@
+import { sourceStatements } from "./source-statements.js";
+
 // Conservative recovery of distinct non-money instructions missed by a tiny AI.
 // Only directly requested, source-quoted actions. Never create a task for paying money.
 const sendItem=/\b(?:(?:also|please)\s+)*(?:send|share|forward)\s+(?:me\s+)?(?:the\s+|your\s+|that\s+)?(?:[a-z'-]+\s+){0,3}(?:address|link|location|map\s+pin|photo|picture|file|receipt|screenshot|document)\b/i;
@@ -7,8 +9,8 @@ const paymentMention=/\$\s*\d|\b(?:usdc|dollars?|repay|reimburse)\b/i;
 export function explicitNonMoneyTasks(source,perspective="incoming"){
  const text=String(source||"").trim().slice(0,12000);
  const result=[];
- for(const chunk of text.matchAll(/[^.!?;\n]+[.!?;\n]?/g)){
-  const sentence=chunk[0],trimmed=sentence.trim();
+ for(const chunk of sourceStatements(text)){
+  const sentence=chunk.text,trimmed=sentence.trim();
   if(nonAction.test(trimmed))continue;
   const candidates=[sentence.match(sendItem),sentence.match(remind)].filter(Boolean);
   for(const match of candidates){
@@ -19,7 +21,7 @@ export function explicitNonMoneyTasks(source,perspective="incoming"){
    // A bare object mention is not an independent task. The source must ask.
    if(!/\b(?:send|share|forward|remind)\b/i.test(quote))continue;
    const title=quote.replace(/^(?:also\s+)?(?:please\s+)?/i,"").replace(/^./,c=>c.toUpperCase());
-   const evidence=text.slice(text.indexOf(quote,chunk.index),text.indexOf(quote,chunk.index)+quote.length);
+   const evidence=text.slice(text.indexOf(quote,chunk.start),text.indexOf(quote,chunk.start)+quote.length);
    if(!evidence || result.some(x=>x.evidence.toLowerCase()===evidence.toLowerCase()))continue;
    result.push({kind:"task",direction:"i_owe",title,evidence,amount:null,recipientName:"",
      currency:"USD",status:"open",recipientAddress:"",txHash:"",payer:"",network:"monad-testnet",

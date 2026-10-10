@@ -1,4 +1,5 @@
 import { unsafeMoneyRequestReason } from "./request-safety.js";
+import { sourceStatements } from "./source-statements.js";
 
 // Explicit voluntary money asks, separate from a debt and from general spending advice.
 // Ground every candidate in the exact source words. Never invent a payee wallet.
@@ -44,11 +45,11 @@ export function findVoluntaryRequests(transcript,perspective="incoming") {
   const text=String(transcript||"").trim().slice(0,12000);
   if(!text)return [];
   const result=[];
-  const spans=[...text.matchAll(/[^.!?;\n]+[.!?;\n]?/g)];
+  const spans=sourceStatements(text);
   for(const span of spans){
-    const possible=matchPhrase(span[0]);
+    const possible=matchPhrase(span.text);
     if(!possible)continue;
-    const position=text.indexOf(possible.evidence,span.index);
+    const position=text.indexOf(possible.evidence,span.start);
     const prefix=text.slice(Math.max(0,position-80),position).split(/[.!?;\n]/).pop();
     if(negated.test(prefix))continue;
     if(unsafeMoneyRequestReason({kind:"money",evidence:possible.evidence},text))continue;

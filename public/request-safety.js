@@ -1,3 +1,5 @@
+import { sourceStatements } from "./source-statements.js";
+
 // Source-grounded checks for money requests that were withdrawn, relayed by
 // a third party, or revised without a clear final amount. Never create Pay from
 // these without a fresh, unambiguous instruction.
@@ -7,8 +9,7 @@ const withdraw = /\b(?:never\s*mind|nevermind|forget\s+(?:it|that|the\s+request)
 const revision = /\b(?:make\s+(?:it|that)|change\s+(?:it|that)\s+to|instead|rather|\bor\b|actually\s+\$?|correction)\b/i;
 const reported = /\b(?:i|we|he|she|they|my\s+friend|[a-z]+)\s+(?:told|asked|said|wrote|texted|messaged|quoted)\b[^.!?;\n]{0,65}$/i;
 function statements(text) {
-  return [...String(text||"").matchAll(/[^.!?;\n]+[.!?;\n]?/g)]
-    .map(m=>({text:m[0],start:m.index,end:m.index+m[0].length}));
+  return sourceStatements(text);
 }
 export function unsafeRequestSegments(source) {
   const text=String(source||"");

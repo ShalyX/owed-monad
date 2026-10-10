@@ -1,4 +1,5 @@
 import { unsafeMoneyRequestReason } from "./request-safety.js";
+import { sourceStatements } from "./source-statements.js";
 
 // Financial-context safety pass. This does not add an inbox category.
 // It prevents an amount in a condition, correction, or split total from
@@ -24,7 +25,7 @@ function moneyItem(items,perspective,amount,evidence,title,contextNote) {
   return result;
 }
 function statements(text) {
-  return [...text.matchAll(/[^.!?;\n]+[.!?;\n]?/g)].map(m=>({text:m[0].trim(),start:m.index,end:m.index+m[0].length}));
+  return sourceStatements(text).map(s=>({...s,text:s.text.trim()}));
 }
 const conditionPattern=/\b(?:if|unless|once|after|provided(?: that)?|as long as|only if|when)\b/i;
 const paymentCue=/\b(?:owe|pay|send|transfer|repay|refund|payment|share)\b/i;
@@ -45,7 +46,7 @@ function conditionalSegments(text) {
 function findCorrection(text) {
   const first=/\b(?:you\s+(?:still\s+)?owe\s+me|i\s+(?:still\s+)?owe\s+you|(?:please\s+)?(?:send|pay|transfer)\s+me)\s+/gi;
   const original=[...text.matchAll(first)].map(m=>{
-    const after=text.slice(m.index,Math.min(text.length,m.index+100)).split(/[.!?;\n]/)[0];
+    const after=sourceStatements(text.slice(m.index,Math.min(text.length,m.index+100)))[0]?.text || "";
     const hit=amounts(after)[0];
     return hit ? {start:m.index,amount:hit.value,end:m.index+hit.index+hit.raw.length} : null;
   }).filter(Boolean);

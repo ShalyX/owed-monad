@@ -1,0 +1,525 @@
+{
+  "title": "Owed Group-Context Unseen Evaluation",
+  "created": "2026-10-11",
+  "releaseUnderTest": "d00a5bd",
+  "rule": "Frozen before first scoring; no tuning until original results retained.",
+  "cases": [
+    {
+      "id": "G01",
+      "label": "Named small reimbursement",
+      "participant": "Nia",
+      "transcript": "Jules: I picked up the keycards.\nNia: Great.\nJules: Nia, please send me $6.40 for your card.",
+      "expected": {
+        "status": 200,
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 6.4
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G02",
+      "label": "Named incoming loan",
+      "participant": "Nia",
+      "transcript": "Jules: Nia, I still owe you $18.25 from the market.\nNia: Just remember it.",
+      "expected": {
+        "status": 200,
+        "money": [
+          {
+            "direction": "owed_to_me",
+            "amount": 18.25
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G03",
+      "label": "Shared budget no demand",
+      "participant": "Nia",
+      "transcript": "Jules: Our booth was $84 for four people.\nNia: Ah okay.\nOla: We should sort it out soon.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G04",
+      "label": "Everyone should pay someone",
+      "participant": "Nia",
+      "transcript": "Jules: Everyone needs to send their $21 share.\nNia: Where do we send it?\nOla: We'll confirm later.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G05",
+      "label": "Ambiguous reply to previous ping",
+      "participant": "Nia",
+      "transcript": "Jules: Nia, are you around?\nNia: Yep.\nJules: Cool, send me $9 for the gate pass.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G06",
+      "label": "Third-party reference",
+      "participant": "Nia",
+      "transcript": "Jules: Ola still owes me $33 for the heater.\nNia: Have you reminded him?\nOla: I'll get to it.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G07",
+      "label": "Request directed to different member",
+      "participant": "Nia",
+      "transcript": "Jules: Ola, send me $4.50 for the train.\nNia: I'll check the timetable.\nOla: Okay.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G08",
+      "label": "Mention of name is not address",
+      "participant": "Nia",
+      "transcript": "Jules: I think Nia already covered the $14 cost.\nOla: Fair.\nNia: I'm checking.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G09",
+      "label": "At-handle direct money",
+      "participant": "Nia",
+      "transcript": "Ola: @Nia, send me $7.75 for the printed badge.\nNia: Noted.",
+      "expected": {
+        "status": 200,
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 7.75
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G10",
+      "label": "Em dash direct money",
+      "participant": "Nia",
+      "transcript": "Jules: Nia — send me $3 for the paper tickets.\nNia: Fine.",
+      "expected": {
+        "status": 200,
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 3
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G11",
+      "label": "Observer no assignment",
+      "participant": "__observer__",
+      "transcript": "Jules: Nia, send me $5 for tolls.\nNia: Okay.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G12",
+      "label": "Mixed-case speaker identity",
+      "participant": "nia",
+      "transcript": "NIA: Has anyone checked the key?\nJules: Nia, send me $4 for your copy.\nOla: Okay.",
+      "expected": {
+        "status": 200,
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 4
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G13",
+      "label": "Similar names no cross-attribution",
+      "participant": "Sam",
+      "transcript": "Sam: Here.\nSamantha: Ready.\nOla: Samantha, send me $16. Sam, just take photos.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": [
+          "photos"
+        ]
+      }
+    },
+    {
+      "id": "G14",
+      "label": "Genitive is not direct addressee",
+      "participant": "Nia",
+      "transcript": "Jules: Nia's share was $19, by the way.\nNia: That's what I remembered.\nOla: I can ask.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G15",
+      "label": "Nickname not declared alias",
+      "participant": "Nia",
+      "transcript": "Jules: Nee, send $12 for the printer ink.\nNia: Did you mean me?\nOla: Not sure.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G16",
+      "label": "Quoted instruction in reported speech",
+      "participant": "Nia",
+      "transcript": "Jules: Nia, remember how Ola joked 'send me $40 or else' yesterday?\nNia: lol.\nOla: 😂",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G17",
+      "label": "Gift waiver same sentence",
+      "participant": "Nia",
+      "transcript": "Jules: Nia, don't pay me $11 for the flowers; they're a gift.\nNia: Thanks.\nOla: Sweet.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G18",
+      "label": "Conditional ticket approval",
+      "participant": "Nia",
+      "transcript": "Jules: Nia, send me $28 only if the organiser confirms your seat.\nNia: Has it been confirmed?\nJules: Not yet.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G19",
+      "label": "Subsequently acknowledged payment",
+      "participant": "Nia",
+      "transcript": "Jules: Nia, send me $13 for the hall.\nNia: Sent it already.\nJules: Got the $13 just now, we're settled.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G20",
+      "label": "Correction later in conversation",
+      "participant": "Nia",
+      "transcript": "Jules: Nia, send me $22 for the equipment.\nOla: That's the old amount.\nJules: Nia, I meant $17, not $22. Please send $17.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G21",
+      "label": "Two coordinated deliverables",
+      "participant": "Nia",
+      "transcript": "Jules: Nia, send me the revised agenda and the speaker list.\nNia: I'll forward them.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": [
+          "agenda",
+          "speaker list"
+        ]
+      }
+    },
+    {
+      "id": "G22",
+      "label": "Two independent instructions different lines",
+      "participant": "Nia",
+      "transcript": "Jules: Nia, forward the loading instructions.\nOla: Nia, share the venue address.\nNia: I'll handle it.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": [
+          "loading instructions",
+          "venue address"
+        ]
+      }
+    },
+    {
+      "id": "G23",
+      "label": "Asking for two details, polite form",
+      "participant": "Nia",
+      "transcript": "Jules: Nia, could you send me the access link and the floor map?\nNia: Yep.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": [
+          "access link",
+          "floor map"
+        ]
+      }
+    },
+    {
+      "id": "G24",
+      "label": "Conjunction inside object name",
+      "participant": "Nia",
+      "transcript": "Jules: Nia, send me a photo of Ada and Bisi.\nNia: I have it.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": [
+          "photo"
+        ]
+      }
+    },
+    {
+      "id": "G25",
+      "label": "Money and separately requested task",
+      "participant": "Nia",
+      "transcript": "Jules: Nia, send me $2 for the clipboards.\nOla: Nia, send the sign-in sheet.\nNia: Sure.",
+      "expected": {
+        "status": 200,
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 2
+          }
+        ],
+        "tasks": [
+          "sign-in sheet"
+        ]
+      }
+    },
+    {
+      "id": "G26",
+      "label": "Other person's debt and own task",
+      "participant": "Nia",
+      "transcript": "Jules: Ola, send me $17 for the USB hub.\nOla: Okay.\nJules: Nia, share the workshop link.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": [
+          "workshop link"
+        ]
+      }
+    },
+    {
+      "id": "G27",
+      "label": "Group bill plus explicit own remainder",
+      "participant": "Nia",
+      "transcript": "Jules: The venue was $96, shared across six people.\nOla: So $16 each.\nJules: Nia, please send me your remaining $8.\nNia: I had paid half yesterday.",
+      "expected": {
+        "status": 200,
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 8
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G28",
+      "label": "Hey-name direct request",
+      "participant": "Nia",
+      "transcript": "Ola: Hey Nia, send me $5.25 for the shuttle ride.\nNia: Will do.",
+      "expected": {
+        "status": 200,
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 5.25
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G29",
+      "label": "Explicit named non-debt",
+      "participant": "Nia",
+      "transcript": "Jules: Nia, you don't owe me $15 anymore, I paid for both.\nNia: Cheers.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G30",
+      "label": "Named incoming money debt no payable",
+      "participant": "Nia",
+      "transcript": "Ola: Nia, I owe you $9 for the textbook, promise I'll settle next week.\nNia: Thanks.",
+      "expected": {
+        "status": 200,
+        "money": [
+          {
+            "direction": "owed_to_me",
+            "amount": 9
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G31",
+      "label": "Multi-line continuation under speaker",
+      "participant": "Nia",
+      "transcript": "Ola: Nia, can you forward the delivery address\nand the permit PDF?\nNia: I can do that.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": [
+          "delivery address",
+          "permit PDF"
+        ]
+      }
+    },
+    {
+      "id": "G32",
+      "label": "Two competing direct requests, selected one",
+      "participant": "Nia",
+      "transcript": "Jules: Nia, send me $6 for the tea.\nOla: Zed, send me $11 for your own tea.\nNia: Okay.\nZed: Fine.",
+      "expected": {
+        "status": 200,
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 6
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G33",
+      "label": "Aliased addressee unknown",
+      "participant": "Nia",
+      "transcript": "Jules: Nina, please transfer $30 for the projector.\nNia: My name here is Nia, is that directed to me?\nOla: Not sure.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G34",
+      "label": "Narrated direct request to third party",
+      "participant": "Nia",
+      "transcript": "Jules: I told Ola to send me $12, Nia.\nNia: Ah okay.\nOla: Yep.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G35",
+      "label": "No participant chosen",
+      "participant": "",
+      "transcript": "Jules: Nia, send me $7 for the bag tags.\nNia: Got it.",
+      "expected": {
+        "status": 422,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G36",
+      "label": "Invented participant not present",
+      "participant": "Mara",
+      "transcript": "Jules: Nia, send me $7 for the bag tags.\nNia: Got it.",
+      "expected": {
+        "status": 422,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G37",
+      "label": "Two concrete objects without articles",
+      "participant": "Nia",
+      "transcript": "Jules: Nia, forward the flyers and receipts.\nNia: I can do it.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": [
+          "flyers",
+          "receipts"
+        ]
+      }
+    },
+    {
+      "id": "G38",
+      "label": "Third-party request named inside answer",
+      "participant": "Nia",
+      "transcript": "Jules: Nia, I need to hear from Ola. Can you call him?\nNia: Yup.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": [
+          "call"
+        ]
+      }
+    },
+    {
+      "id": "G39",
+      "label": "Overlapping name inside sentence",
+      "participant": "Ana",
+      "transcript": "Jo: Everyone agrees Mariana will send the file and Ana will review it.\nAna: I haven't agreed to anything.\nMariana: I said I'd send.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "G40",
+      "label": "Mixed speaker corrections & task",
+      "participant": "Nia",
+      "transcript": "Jules: Nia, send me $8 for the leaflets.\nNia: I'm sure I already did.\nJules: Ah yes, received. Nia, forward the corrected poster instead.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": [
+          "poster"
+        ]
+      }
+    }
+  ]
+}

@@ -31,6 +31,11 @@ export function removeShadowPaymentTasks(items, { onlyOpen = false } = {}) {
     if (!item || item.kind !== "task") return true;
     if (onlyOpen && item.status !== "open") return true;
     if (distinctNonPaymentRequest(item.evidence)) return true;
+    // A standalone "send $23" card is the same corrected $23 payment,
+    // not a separate non-financial action.
+    const commanded=item.evidence.match(/\b(?:send|pay|transfer)\s+(?:me\s+)?\$\s*(\d+(?:\.\d{1,6})?)\b/i);
+    if(commanded && money.some(p=>p.amount===Number(commanded[1])))return false;
+    if(/\b(?:send|make|do)\s+(?:the\s+)?(?:payment|money|funds)\b/i.test(item.title))return false;
     return !money.some(payment => samePaymentEvidence(item.evidence, payment.evidence));
   });
 }

@@ -57,11 +57,24 @@ function findCorrection(text) {
   }).filter(Boolean);
   const correction=/\b(?:actually\s+)?(?:make\s+(?:it|that)\s+|change\s+(?:it|that)\s+to\s+|(?:it's|it is)\s+actually\s+|(?:the\s+)?(?:amount|total)\s+is\s+now\s+)(\$\s*\d{1,5}(?:\.\d{1,6})?|\d{1,5}(?:\.\d{1,6})?\s*(?:dollars?|usd|usdc)\b)/gi;
   const changes=[...text.matchAll(correction)].map(m=>({start:m.index,amount:amounts(m[1])[0]?.value,end:m.index+m[0].length})).filter(x=>x.amount);
+  // "It's $23, not $28. Send $23" is a correction only when the
+  // negated amount equals the earlier debt and the new amount is requested.
+  if(!changes.length&&original.length===1){
+    for(const m of text.matchAll(/\b(?:it's|it is)\s+(\$\s*\d{1,5}(?:\.\d{1,6})?)\s*,?\s*not\s+(\$\s*\d{1,5}(?:\.\d{1,6})?)/gi)){
+      const latest=amounts(m[1])[0]?.value,older=amounts(m[2])[0]?.value;
+      const after=text.slice(m.index+m[0].length);
+      if(latest!==undefined&&older===original[0].amount&&latest!==older&&
+          new RegExp("\\b(?:send|pay|transfer)\\s+(?:me\\s+)?\\$\\s*"+String(latest).replace(".","\\.")+"\\b","i").test(after))
+        changes.push({start:m.index,amount:latest,end:m.index+m[0].length,negated:older});
+    }
+  }
   if(!original.length||!changes.length)return null;
   const changed=changes.find(x=>x.start>original[0].end&&x.start-original[0].end<=140);
   if(!changed)return null;
+  const seen=amounts(text.slice(original[0].start,changed.end));
   const unambiguous=original.length===1&&changes.length===1&&
-    amounts(text.slice(original[0].start,changed.end)).length===2;
+    (seen.length===2 || (changed.negated===original[0].amount &&
+      new Set(seen.map(x=>x.value)).size===2));
   return {
     original:original[0],latest:changed.amount,
     evidence:text.slice(original[0].start,changed.end).trim(),
@@ -83,6 +96,9 @@ function findSplit(text) {
   }).filter(Boolean);
   if(!found.length)return null;
   const s=found[0];
+  // Mentioning a past split without the number of participants is not a
+  // reason to erase a directly stated personal debt.
+  if(!s.count)return null;
   const evidenceStart=text.length<=260?0:Math.max(0,s.index-48);
   const evidence=text.slice(evidenceStart,evidenceStart+260).trim();
   const directShare=/\b(?:you\s+(?:still\s+)?owe\s+me\s+(?:your\s+)?share|(?:send|pay|transfer)\s+me\s+(?:your\s+|the\s+)?share|(?:could|can)\s+you\s+(?:please\s+)?(?:send|pay)\s+me\s+(?:your\s+)?share)\b/i.test(evidence);
@@ -100,19 +116,33 @@ function findSplit(text) {
       (directShare||explicitPerPerson),
     evidence};
 }
+function findPartialRepayment(source) {
+  // Strict evidence chain: old amount -> acknowledged transfer -> exact
+  // remaining balance -> explicit request for that remaining balance.
+  // No arithmetic guess is permitted from prices alone.
+  const pattern=/\byou\s+owed\s+\$\s*(\d{1,5}(?:\.\d{1,6})?)[^\n]{0,125}?\bi\s+(?:got|received)\s+your\s+\$\s*(\d{1,5}(?:\.\d{1,6})?)\s+(?:earlier|already)[\s\S]{0,80}?\bthat\s+leaves\s+\$\s*(\d{1,5}(?:\.\d{1,6})?)[\s\S]{0,80}?\b(?:please\s+)?send\s+(?:me\s+)?(?:the\s+)?remaining\s+\$\s*(\d{1,5}(?:\.\d{1,6})?)/i;
+  const match=pattern.exec(source);
+  if(!match || /\b(?:if|unless|hypothetically|for\s+example|don't\s+send|never\s*mind|my\s+treat)\b/i.test(source))return null;
+  const values=match.slice(1,5).map(Number);
+  if(values.some(v=>!Number.isFinite(v)||v<=0||v>10000))return null;
+  const units=values.map(x=>Math.round(x*1e6));
+  if(units.some((n,i)=>Math.abs(n/1e6-values[i])>0.000000001) ||
+     units[0]-units[1]!==units[2] || units[2]!==units[3])return null;
+  return {old:values[0],paid:values[1],remaining:values[2],evidence:match[0].slice(0,260)};
+}
 function condNote(){return "This payment depends on a condition. Confirm it happened before treating it as owed.";}
 export function inspectFinancialContext(text) {
   const source=String(text||"").trim().slice(0,20000);
   const correction=findCorrection(source);
   const possibleCorrection=!correction && !/\b(?:never\s*mind|nevermind|my\s+treat|don't\s+send|do\s+not\s+send)\b/i.test(source) && amounts(source).length>=2 &&
     /\b(?:actually|correction|instead|rather|scratch that|changed? to|revised? to|make (?:it|that)|wait[,!]?|no[,!])\b/i.test(source);
-  return {conditional:conditionalSegments(source),correction,possibleCorrection,split:findSplit(source)};
+  return {conditional:conditionalSegments(source),correction,possibleCorrection,split:findSplit(source),partial:findPartialRepayment(source)};
 }
 export function reconcileFinancialContext(items,source,perspective="incoming") {
   const original=Array.isArray(items)?items.slice():[];
   const text=String(source||"").trim().slice(0,20000);
   if(!text)return {items:original,analysisNote:""};
-  const {conditional,correction,possibleCorrection,split}=inspectFinancialContext(text);
+  const {conditional,correction,possibleCorrection,split,partial}=inspectFinancialContext(text);
   let result=original,notes=[];
   if (conditional.length) {
     const conditionAmounts=conditional.flatMap(s=>amounts(s.text).map(x=>x.value));
@@ -166,6 +196,16 @@ export function reconcileFinancialContext(items,source,perspective="incoming") {
       notes.push("An equal split of $"+split.total+" across "+split.count+" people gives $"+amount+" each. Confirm before paying.");
     } else notes.push("A shared bill was mentioned, but your exact payable share wasn't established.");
   }
+  if(partial && !conditional.length && !correction && !possibleCorrection && !split){
+    const relevant=new Set([partial.old,partial.paid,partial.remaining]);
+    result=result.filter(item=>item.kind!=="money"||!relevant.has(item.amount));
+    const candidate=moneyItem(original,perspective,partial.remaining,partial.evidence,
+      "Remaining payment · $"+partial.remaining,
+      "Remaining after $"+partial.paid+" was received toward $"+partial.old+". Confirm before paying.");
+    candidate.direction=perspective==="incoming"?"i_owe":"owed_to_me";
+    result.push(candidate);
+    notes.push("The conversation acknowledges $"+partial.paid+" already paid, leaving $"+partial.remaining+" outstanding.");
+  }
   // Never allow a context rewrite to give a task an implicit payment status.
   return {items:result.slice(0,16),analysisNote:notes.join(" ")};
 }
@@ -173,11 +213,13 @@ export function legacyPaymentWarning(item,source) {
   if(!item||item.kind!=="money")return null;
   const unsafe = unsafeMoneyRequestReason(item,source);
   if(unsafe) return unsafe;
-  const {conditional,correction,possibleCorrection,split}=inspectFinancialContext(source);
+  const {conditional,correction,possibleCorrection,split,partial}=inspectFinancialContext(source);
   if(conditional.some(s=>amounts(s.text).some(m=>m.value===item.amount)||
     s.text.toLowerCase().includes(String(item.evidence||"\u0000").toLowerCase()))) {
     return condNote();
   }
+  if(partial && (item.amount!==partial.remaining || !String(item.contextNote||"").includes("Remaining after")))
+    return "A prior payment changed this balance. Re-analyze the message before paying.";
   if(possibleCorrection) return "An amount may have been revised. Re-analyze the message before paying.";
   if(correction && (!correction.unambiguous || item.amount!==correction.latest ||
       !String(item.contextNote||"").includes("Revised from")))

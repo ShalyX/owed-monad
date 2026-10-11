@@ -44,6 +44,9 @@ try{
  }
  if(!ready)throw Error("Public UI not loaded");
  const first=await js("({secure:window.isSecureContext,origin:location.origin,styles:document.styleSheets.length,hasWallet:!!window.ethereum?.request})");
+ const initial=await js("({cards:document.querySelectorAll('article.obligation').length,wallet:!!window.ethereum?.request,empty:document.querySelector('#inbox').textContent})");
+ if(initial.cards||initial.wallet)throw Error("Fresh user did not start with clean inbox and no wallet");
+ console.log("PASS_FRESH_PROFILE_EMPTY_INBOX");
  console.log("HTTPS_BROWSER="+JSON.stringify(first));
  if(!first.secure||first.styles<2)throw Error("Public browser not secure or missing styles");
  await js("document.querySelector('#conversation').value='You owe me $0.01 for coffee. Please send me the meetup address.';document.querySelector('#analyzeText').click();true");
@@ -69,6 +72,16 @@ try{
  console.log("PUBLIC_NO_TRANSFER="+JSON.stringify(denied));
  if(!denied.open||!denied.notice.includes("Enter a valid 0x"))throw Error("No-recipient gate broken");
  console.log("PASS_PUBLIC_HTTPS_CAPTURE_REVIEW_PAY_GATE");
+ await js("document.querySelector('#payDialog').close();document.querySelector('[data-action=complete]').click();true");
+ await sleep(380);
+ const completed=await js("({done:JSON.parse(localStorage.getItem('owed-v1-inbox'))[0].obligations.some(x=>x.kind==='task'&&x.status==='done'),sent:!!window.ethereum})");
+ if(!completed.done||completed.sent)throw Error("Task completion did not persist without wallet");
+ await call("Page.reload",{ignoreCache:true});
+ await sleep(600);
+ const restored=await js("({cards:document.querySelectorAll('article.obligation').length,taskDone:document.querySelector('#inbox').textContent.includes('Task done'),pay:document.querySelectorAll('[data-action=pay]').length,wallet:!!window.ethereum?.request})");
+ if(restored.cards!==2||!restored.taskDone||restored.pay!==1||restored.wallet)throw Error("Saved inbox failed reload: "+JSON.stringify(restored));
+ console.log("PASS_RELOAD_PRESERVES_TASK_AND_OPEN_MONEY "+JSON.stringify(restored));
+
 }finally{
  try{socket?.close();}catch{}
  try{process.kill(-browser.pid,"SIGTERM");}catch{try{browser.kill();}catch{}}

@@ -22,7 +22,7 @@ function matchPhrase(text) {
   if(!request) return null;
   const start=request.index;
   const trailing=phrase.slice(start);
-  const boundary=trailing.search(/[.!?;\n]/);
+  const boundary=trailing.search(/[!?;\n]|\.(?!\d)/);
   const segment=boundary<0?trailing:trailing.slice(0,boundary);
   // Reimbursement is not a voluntary gift request.
   if (/\b(?:back|repay|reimburse|you\s+(?:owe|bought|ordered)|i\s+(?:paid|covered))\b/i.test(segment)) return null;

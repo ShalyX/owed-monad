@@ -1,0 +1,443 @@
+{
+  "version": "blind-v1",
+  "casesSha256": "a2ae26b1da0cd77ae48d8859d927661efceb875a17d34641e741fa810fa30b95",
+  "cases": [
+    {
+      "id": "B01",
+      "name": "Quick repayment reminder",
+      "status": 200,
+      "seconds": 14,
+      "pass": true,
+      "moneyExpected": [
+        {
+          "direction": "i_owe",
+          "amount": 14.75
+        }
+      ],
+      "moneyReturned": [
+        {
+          "direction": "i_owe",
+          "amount": 14.75,
+          "title": "Repay laundry",
+          "evidence": "You still owe me $14.75 for the laundry pickup."
+        }
+      ],
+      "tasksExpected": [],
+      "tasksReturned": [],
+      "missingMoney": 0,
+      "extraMoney": 0,
+      "missingTasks": 0,
+      "extraTasks": 0,
+      "falsePayable": 0,
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "B02",
+      "name": "Borrower promises return",
+      "status": 200,
+      "seconds": 10,
+      "pass": true,
+      "moneyExpected": [
+        {
+          "direction": "owed_to_me",
+          "amount": 9.2
+        }
+      ],
+      "moneyReturned": [
+        {
+          "direction": "owed_to_me",
+          "amount": 9.2,
+          "title": "Money to receive · $9.2",
+          "evidence": "Sorry I couldn't return the $9.20 I borrowed from you last Wednesday."
+        }
+      ],
+      "tasksExpected": [],
+      "tasksReturned": [],
+      "missingMoney": 0,
+      "extraMoney": 0,
+      "missingTasks": 0,
+      "extraTasks": 0,
+      "falsePayable": 0,
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "B04",
+      "name": "Forgiven repayment",
+      "status": 200,
+      "seconds": 9,
+      "pass": true,
+      "moneyExpected": [],
+      "moneyReturned": [],
+      "tasksExpected": [],
+      "tasksReturned": [],
+      "missingMoney": 0,
+      "extraMoney": 0,
+      "missingTasks": 0,
+      "extraTasks": 0,
+      "falsePayable": 0,
+      "note": "The money request appears to have been withdrawn. No payment was added.",
+      "error": null
+    },
+    {
+      "id": "B06",
+      "name": "Request for optional help",
+      "status": 200,
+      "seconds": 10,
+      "pass": true,
+      "moneyExpected": [
+        {
+          "direction": "voluntary_request",
+          "amount": 2.5
+        }
+      ],
+      "moneyReturned": [
+        {
+          "direction": "voluntary_request",
+          "amount": 2.5,
+          "title": "Asked you for $2.5",
+          "evidence": "could you spare me $2.50 for mobile data"
+        }
+      ],
+      "tasksExpected": [],
+      "tasksReturned": [],
+      "missingMoney": 0,
+      "extraMoney": 0,
+      "missingTasks": 0,
+      "extraTasks": 0,
+      "falsePayable": 0,
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "B07",
+      "name": "Straightforward non-money request",
+      "status": 200,
+      "seconds": 13,
+      "pass": true,
+      "moneyExpected": [],
+      "moneyReturned": [],
+      "tasksExpected": [
+        "link"
+      ],
+      "tasksReturned": [
+        {
+          "title": "Google Maps link",
+          "evidence": "Please forward the Google Maps link for the studio, and remind me which floor we're meeting on."
+        }
+      ],
+      "missingMoney": 0,
+      "extraMoney": 0,
+      "missingTasks": 0,
+      "extraTasks": 0,
+      "falsePayable": 0,
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "B10",
+      "name": "Correction after quote",
+      "status": 200,
+      "seconds": 12,
+      "pass": true,
+      "moneyExpected": [
+        {
+          "direction": "i_owe",
+          "amount": 23
+        }
+      ],
+      "moneyReturned": [
+        {
+          "direction": "i_owe",
+          "amount": 23,
+          "title": "Updated payment · $23",
+          "evidence": "You owe me $28 for the groceries. Hang on, I used the wrong receipt. It's $23, not $28"
+        }
+      ],
+      "tasksExpected": [],
+      "tasksReturned": [],
+      "missingMoney": 0,
+      "extraMoney": 0,
+      "missingTasks": 0,
+      "extraTasks": 0,
+      "falsePayable": 0,
+      "note": "The payment was corrected from $28 to $23. Only the revised amount is shown.",
+      "error": null
+    },
+    {
+      "id": "B13",
+      "name": "Fake payment assertion",
+      "status": 200,
+      "seconds": 10,
+      "pass": true,
+      "moneyExpected": [],
+      "moneyReturned": [],
+      "tasksExpected": [
+        "check"
+      ],
+      "tasksReturned": [
+        {
+          "title": "Can you check whether it arrived",
+          "evidence": "Can you check whether it arrived"
+        }
+      ],
+      "missingMoney": 0,
+      "extraMoney": 0,
+      "missingTasks": 0,
+      "extraTasks": 0,
+      "falsePayable": 0,
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "B14",
+      "name": "Three-person chat expense",
+      "status": 200,
+      "seconds": 12,
+      "pass": false,
+      "moneyExpected": [
+        {
+          "direction": "i_owe",
+          "amount": 12
+        }
+      ],
+      "moneyReturned": [
+        {
+          "direction": "unclear",
+          "amount": 36,
+          "title": "Cover hotel taxi payment",
+          "evidence": "I covered the $36 hotel taxi."
+        }
+      ],
+      "tasksExpected": [],
+      "tasksReturned": [
+        {
+          "title": "Send hotel taxi payment",
+          "evidence": "Alex, send Kemi your $12, I already sent mine."
+        }
+      ],
+      "missingMoney": 1,
+      "extraMoney": 1,
+      "missingTasks": 0,
+      "extraTasks": 1,
+      "falsePayable": 0,
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "B15",
+      "name": "Refund direction",
+      "status": 200,
+      "seconds": 10,
+      "pass": true,
+      "moneyExpected": [],
+      "moneyReturned": [],
+      "tasksExpected": [],
+      "tasksReturned": [],
+      "missingMoney": 0,
+      "extraMoney": 0,
+      "missingTasks": 0,
+      "extraTasks": 0,
+      "falsePayable": 0,
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "B16",
+      "name": "Gift shouldn't be repaid",
+      "status": 200,
+      "seconds": 11,
+      "pass": true,
+      "moneyExpected": [],
+      "moneyReturned": [],
+      "tasksExpected": [],
+      "tasksReturned": [],
+      "missingMoney": 0,
+      "extraMoney": 0,
+      "missingTasks": 0,
+      "extraTasks": 0,
+      "falsePayable": 0,
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "B20",
+      "name": "Decimal transfer",
+      "status": 200,
+      "seconds": 14,
+      "pass": true,
+      "moneyExpected": [
+        {
+          "direction": "i_owe",
+          "amount": 0.075
+        }
+      ],
+      "moneyReturned": [
+        {
+          "direction": "i_owe",
+          "amount": 0.075,
+          "title": "Send $0.075",
+          "evidence": "Reminder: you still owe me 0.075 USDC for the API credits we split last week."
+        }
+      ],
+      "tasksExpected": [],
+      "tasksReturned": [],
+      "missingMoney": 0,
+      "extraMoney": 0,
+      "missingTasks": 0,
+      "extraTasks": 0,
+      "falsePayable": 0,
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "B22",
+      "name": "Partial reimbursement",
+      "status": 200,
+      "seconds": 12,
+      "pass": true,
+      "moneyExpected": [
+        {
+          "direction": "i_owe",
+          "amount": 7
+        }
+      ],
+      "moneyReturned": [
+        {
+          "direction": "i_owe",
+          "amount": 7,
+          "title": "Remaining payment · $7",
+          "evidence": "You owed $10 for lunch, but I got your $3 earlier. That leaves $7. Please send the remaining $7"
+        }
+      ],
+      "tasksExpected": [],
+      "tasksReturned": [],
+      "missingMoney": 0,
+      "extraMoney": 0,
+      "missingTasks": 0,
+      "extraTasks": 0,
+      "falsePayable": 0,
+      "note": "The conversation acknowledges $3 already paid, leaving $7 outstanding.",
+      "error": null
+    },
+    {
+      "id": "B23",
+      "name": "Recorded promise",
+      "status": 200,
+      "seconds": 10,
+      "pass": true,
+      "moneyExpected": [
+        {
+          "direction": "i_owe",
+          "amount": 6
+        }
+      ],
+      "moneyReturned": [
+        {
+          "direction": "i_owe",
+          "amount": 6,
+          "title": "Send $6",
+          "evidence": "Note to self: I still owe Fola $6 for the cinema popcorn."
+        }
+      ],
+      "tasksExpected": [],
+      "tasksReturned": [],
+      "missingMoney": 0,
+      "extraMoney": 0,
+      "missingTasks": 0,
+      "extraTasks": 0,
+      "falsePayable": 0,
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "B26",
+      "name": "Cancelled money plus standalone task",
+      "status": 200,
+      "seconds": 16,
+      "pass": true,
+      "moneyExpected": [],
+      "moneyReturned": [],
+      "tasksExpected": [
+        "PDF"
+      ],
+      "tasksReturned": [
+        {
+          "title": "Forward the final PDF",
+          "evidence": "forward the final PDF"
+        }
+      ],
+      "missingMoney": 0,
+      "extraMoney": 0,
+      "missingTasks": 0,
+      "extraTasks": 0,
+      "falsePayable": 0,
+      "note": "The money request appears to have been withdrawn. No payment was added.",
+      "error": null
+    },
+    {
+      "id": "B29",
+      "name": "Another person's outstanding debt",
+      "status": 200,
+      "seconds": 9,
+      "pass": true,
+      "moneyExpected": [],
+      "moneyReturned": [],
+      "tasksExpected": [
+        "guest"
+      ],
+      "tasksReturned": [
+        {
+          "title": "Send me the guest list",
+          "evidence": "send me the guest list"
+        }
+      ],
+      "missingMoney": 0,
+      "extraMoney": 0,
+      "missingTasks": 0,
+      "extraTasks": 0,
+      "falsePayable": 0,
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "B30",
+      "name": "Multiple favors plus money",
+      "status": 200,
+      "seconds": 15,
+      "pass": false,
+      "moneyExpected": [
+        {
+          "direction": "i_owe",
+          "amount": 2.25
+        }
+      ],
+      "moneyReturned": [
+        {
+          "direction": "i_owe",
+          "amount": 2.25,
+          "title": "Repay printing",
+          "evidence": "You still owe me $2.25 for printing."
+        }
+      ],
+      "tasksExpected": [
+        "flyer",
+        "link"
+      ],
+      "tasksReturned": [
+        {
+          "title": "Send final event flyer and location link",
+          "evidence": "Send me the final event flyer and the location link."
+        }
+      ],
+      "missingMoney": 0,
+      "extraMoney": 0,
+      "missingTasks": 0,
+      "extraTasks": 0,
+      "falsePayable": 0,
+      "note": "",
+      "error": null
+    }
+  ]
+}

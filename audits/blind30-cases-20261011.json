@@ -1,0 +1,389 @@
+{
+  "sha256": "a2ae26b1da0cd77ae48d8859d927661efceb875a17d34641e741fa810fa30b95",
+  "cases": [
+    {
+      "id": "B01",
+      "name": "Quick repayment reminder",
+      "perspective": "incoming",
+      "input": "Hey, you still owe me $14.75 for the laundry pickup. Can you send it before the weekend?",
+      "expected": {
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 14.75
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B02",
+      "name": "Borrower promises return",
+      "perspective": "incoming",
+      "input": "Sorry I couldn't return the $9.20 I borrowed from you last Wednesday. I'll send it after my shift tonight.",
+      "expected": {
+        "money": [
+          {
+            "direction": "owed_to_me",
+            "amount": 9.2
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B03",
+      "name": "Group taxi allocation",
+      "perspective": "incoming",
+      "input": "The taxi cost $45 for the three of us. We agreed an equal split, $15 each. I paid the driver, so send me your $15 please.",
+      "expected": {
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 15
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B04",
+      "name": "Forgiven repayment",
+      "perspective": "incoming",
+      "input": "You still owe me $13 for dinner. Actually forget about it, it was my treat. Don't transfer anything.",
+      "expected": {
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B05",
+      "name": "Payment contingent on work",
+      "perspective": "incoming",
+      "input": "The design fee is $11. Only send the payment after I've finished the logo and you've approved it.",
+      "expected": {
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B06",
+      "name": "Request for optional help",
+      "perspective": "incoming",
+      "input": "Babe I need a little help, could you spare me $2.50 for mobile data? Totally fine if not.",
+      "expected": {
+        "money": [
+          {
+            "direction": "voluntary_request",
+            "amount": 2.5
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B07",
+      "name": "Straightforward non-money request",
+      "perspective": "incoming",
+      "input": "Please forward the Google Maps link for the studio, and remind me which floor we're meeting on.",
+      "expected": {
+        "money": [],
+        "tasks": [
+          "link"
+        ]
+      }
+    },
+    {
+      "id": "B08",
+      "name": "Already paid plus reply task",
+      "perspective": "incoming",
+      "input": "Got the $45 transfer you made for the camera lens, we're settled now. Please send the tracking link when it ships.",
+      "expected": {
+        "money": [],
+        "tasks": [
+          "tracking"
+        ]
+      }
+    },
+    {
+      "id": "B09",
+      "name": "Two separate fees",
+      "perspective": "incoming",
+      "input": "You owe me $4 for yesterday's parking and $3 for the toll. Send both when you can.",
+      "expected": {
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 4
+          },
+          {
+            "direction": "i_owe",
+            "amount": 3
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B10",
+      "name": "Correction after quote",
+      "perspective": "incoming",
+      "input": "You owe me $28 for the groceries. Hang on, I used the wrong receipt. It's $23, not $28. Send $23.",
+      "expected": {
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 23
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B11",
+      "name": "Future loan offer",
+      "perspective": "incoming",
+      "input": "If you lend me $100 for the weekend, I'll repay you on Tuesday. I haven't borrowed anything yet.",
+      "expected": {
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B12",
+      "name": "Pure hypothetical",
+      "perspective": "incoming",
+      "input": "Imagine if you owed me $50 for that game. I'd be reminding you every morning lol. Lucky it was free.",
+      "expected": {
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B13",
+      "name": "Fake payment assertion",
+      "perspective": "incoming",
+      "input": "I already sent you $0.50 yesterday for the snacks. Can you check whether it arrived?",
+      "expected": {
+        "money": [],
+        "tasks": [
+          "check"
+        ]
+      }
+    },
+    {
+      "id": "B14",
+      "name": "Three-person chat expense",
+      "perspective": "incoming",
+      "input": "Kemi: I covered the $36 hotel taxi. That's $12 each for Kemi, Zara and Alex.\nZara: Alex, send Kemi your $12, I already sent mine.\nAlex: Alright, I'll do that.",
+      "expected": {
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 12
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B15",
+      "name": "Refund direction",
+      "perspective": "incoming",
+      "input": "I processed the refund for the $18.75 shipping surcharge I charged you. The funds should reach you tomorrow.",
+      "expected": {
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B16",
+      "name": "Gift shouldn't be repaid",
+      "perspective": "incoming",
+      "input": "That $40 I gave you for your birthday was a gift, not a loan. Please don't send it back.",
+      "expected": {
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B17",
+      "name": "Address without demand",
+      "perspective": "incoming",
+      "input": "Here's the wallet we discussed: 0x1111111111111111111111111111111111111111. I haven't asked you to transfer any money.",
+      "expected": {
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B18",
+      "name": "Price quotation alone",
+      "perspective": "incoming",
+      "input": "For a custom banner the price would be $65. Let me know if you want to proceed, nothing is due yet.",
+      "expected": {
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B19",
+      "name": "Micro USDC debt",
+      "perspective": "incoming",
+      "input": "Tiny thing: you owe me 0.000001 USDC from our wager. Please send exactly that, not a cent more.",
+      "expected": {
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 0.000001
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B20",
+      "name": "Decimal transfer",
+      "perspective": "incoming",
+      "input": "Reminder: you still owe me 0.075 USDC for the API credits we split last week.",
+      "expected": {
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 0.075
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B21",
+      "name": "Due date isn't condition",
+      "perspective": "incoming",
+      "input": "You owe me $17 for the charger I bought you. You can pay next Friday, no hurry.",
+      "expected": {
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 17
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B22",
+      "name": "Partial reimbursement",
+      "perspective": "incoming",
+      "input": "You owed $10 for lunch, but I got your $3 earlier. That leaves $7. Please send the remaining $7.",
+      "expected": {
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 7
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B23",
+      "name": "Recorded promise",
+      "perspective": "recording",
+      "input": "Note to self: I still owe Fola $6 for the cinema popcorn. Pay her tomorrow.",
+      "expected": {
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 6
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B24",
+      "name": "Sender confirms own transfer",
+      "perspective": "incoming",
+      "input": "I have paid you $7 already. No need to pay me anything; just tell me when it lands.",
+      "expected": {
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B25",
+      "name": "Conditional after confirmation",
+      "perspective": "incoming",
+      "input": "Your ticket would be $22, but don't pay until we confirm you're on the guest list. I'll update you.",
+      "expected": {
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B26",
+      "name": "Cancelled money plus standalone task",
+      "perspective": "incoming",
+      "input": "You owe me $5 for the photocopies—actually skip it, my treat. Could you forward the final PDF instead?",
+      "expected": {
+        "money": [],
+        "tasks": [
+          "PDF"
+        ]
+      }
+    },
+    {
+      "id": "B27",
+      "name": "Text is not blockchain proof",
+      "perspective": "incoming",
+      "input": "I sent you 0.03 USDC to your wallet this morning, according to my app. Tell me if it shows up.",
+      "expected": {
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "B28",
+      "name": "Quoted prices with a request",
+      "perspective": "incoming",
+      "input": "The ferry costs $19 and the bus costs $8. I only need you to send me the departure timetable.",
+      "expected": {
+        "money": [],
+        "tasks": [
+          "timetable"
+        ]
+      }
+    },
+    {
+      "id": "B29",
+      "name": "Another person's outstanding debt",
+      "perspective": "incoming",
+      "input": "Abiola still owes Kemi $31 from the group gift. You don't owe either of them anything; just send me the guest list.",
+      "expected": {
+        "money": [],
+        "tasks": [
+          "guest"
+        ]
+      }
+    },
+    {
+      "id": "B30",
+      "name": "Multiple favors plus money",
+      "perspective": "incoming",
+      "input": "Thanks for sorting the poster. You still owe me $2.25 for printing. Also send me the final event flyer and the location link.",
+      "expected": {
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 2.25
+          }
+        ],
+        "tasks": [
+          "flyer",
+          "link"
+        ]
+      }
+    }
+  ]
+}

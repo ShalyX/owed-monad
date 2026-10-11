@@ -9,6 +9,7 @@ import { inspectFinancialContext } from "./public/financial-context.js";
 import { findVoluntaryRequests } from "./public/voluntary-request.js";
 import { getChainReceipt } from "./lib/chain-receipts.mjs";
 import { createPublicGate } from "./lib/public-gate.mjs";
+import { resolveGroupConversation } from "./lib/group-obligations.mjs";
 
 // Pick up a newly saved local token without a server restart; never log it.
 function hfToken() {
@@ -164,7 +165,7 @@ export function makeServer(options = {}) {
         const json = JSON.parse(await readBody(req));
         const content = String(json.text || "").trim();
         if (content.length < 8 || content.length > 12000) return send(res, 400, { error: "Enter a conversation between 8 and 12,000 characters." });
-        return send(res, 200, await chat(content, json.context === "recording" ? "recording" : "incoming"));
+        return send(res, 200, resolveGroupConversation(content, json.participant) ?? await chat(content, json.context === "recording" ? "recording" : "incoming"));
       }
       if (req.method === "POST" && url.pathname === "/api/analyze-audio") return send(res, 200, await analyzeAudio(req));
       if (req.method === "GET" || req.method === "HEAD") return staticFile(req, res, url);

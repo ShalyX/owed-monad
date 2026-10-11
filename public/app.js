@@ -10,6 +10,8 @@ import { removeShadowPaymentTasks } from "./obligation-dedupe.js";
 import { missingObligations } from "./obligation-merge.js";
 import { legacyPaymentWarning } from "./financial-context.js";
 import { findSourceAddresses } from "./address-hints.js";
+import { parseGroupTurns } from "./group-context.js";
+import { atomizeOpenTasks } from "./atomic-tasks.js";
 
 const $ = (id) => document.getElementById(id);
 const KEY = "owed-v1-inbox";
@@ -17,6 +19,7 @@ const KEY = "owed-v1-inbox";
 const verifiedReceipts = new Set();
 let restoredLegacyMoneyCount = 0;
 let collapsedDuplicateTaskCount = 0;
+let separatedLegacyTaskCount = 0;
 const state = { groups: load(), filter: "all", file: null, recorded: null, recorder: null, chunks: [], timer: null, startedAt: 0, processing: false, paymentId: null, receiptId: null, receiptEpoch: 0, recoveryId: null, wallet: "", lastVoicePerspective: "incoming" };
 $("friendStage").innerHTML = friendScene();
 $("analysisBuddy").innerHTML = avatarSvg("the-planner");
@@ -46,11 +49,14 @@ function load() {
     restoredLegacyMoneyCount = restoreLegacyMoney(x);
     for (const group of x) {
       if (!Array.isArray(group?.obligations)) continue;
+      const originalCount=group.obligations.length;
+      group.obligations = atomizeOpenTasks(group.obligations);
+      separatedLegacyTaskCount+=group.obligations.length-originalCount;
       const repaired = removeShadowPaymentTasks(group.obligations, { onlyOpen: true });
       collapsedDuplicateTaskCount += group.obligations.length - repaired.length;
       if (repaired.length !== group.obligations.length) group.obligations = repaired;
     }
-    if (restoredLegacyMoneyCount || collapsedDuplicateTaskCount) localStorage.setItem(KEY, JSON.stringify(x));
+    if (restoredLegacyMoneyCount || collapsedDuplicateTaskCount || separatedLegacyTaskCount) localStorage.setItem(KEY, JSON.stringify(x));
     return x;
   } catch { return []; }
 }
@@ -94,6 +100,7 @@ function addGroup(group) {
   if (!Array.isArray(group.obligations)) throw new Error("Invalid obligation data.");
   const savedGroup = state.groups.find((g) => g.fingerprint === group.fingerprint);
   if (savedGroup) {
+    savedGroup.obligations=atomizeOpenTasks(savedGroup.obligations);
     const recovered = missingObligations(savedGroup, group);
     if (!recovered.length) return showNotice("This conversation is already in your inbox. No duplicates added.");
     savedGroup.obligations.unshift(...recovered);
@@ -113,12 +120,29 @@ function addGroup(group) {
     ? "✦ Found " + group.obligations.length + (group.obligations.length === 1 ? " little thing" : " little things") + " worth remembering. Check the evidence before taking action."
     : "No explicit request found. If this was a voice note, please check the transcript before assuming nothing is owed."));
 }
+function updateGroupIdentity(){
+  const group=parseGroupTurns($("conversation").value);
+  const panel=$("groupIdentityPanel"),select=$("groupParticipant");
+  panel.classList.toggle("hidden",!group);
+  if(!group){select.replaceChildren(new Option("Choose your name in this chat",""));delete select.dataset.signature;return;}
+  const signature=group.participants.join("|");
+  if(select.dataset.signature===signature)return;
+  const previous=select.value;
+  select.replaceChildren(new Option("Choose your name in this chat",""));
+  for(const name of group.participants)select.add(new Option(name,name));
+  select.add(new Option("I'm not a participant","__observer__"));
+  select.dataset.signature=signature;
+  if([...select.options].some(o=>o.value===previous))select.value=previous;
+}
 async function analyzeText(perspective = "incoming", transcriptOverride = null) {
   const text = typeof transcriptOverride === "string" ? transcriptOverride.trim() : $("conversation").value.trim();
   if (text.length < 8) return showNotice("Paste a conversation first (at least 8 characters).", true);
+  const group=parseGroupTurns(text);
+  if(group && typeof transcriptOverride !== "string" && !$("groupParticipant").value)
+    return showNotice("Choose which group-chat participant is you before analysing. Owed won't guess who owes whom.",true);
   setProcessing(true, "Reading the conversation and extracting explicit obligations…");
   try {
-    const response = await fetch("/api/analyze-text", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, context: perspective }) });
+    const response = await fetch("/api/analyze-text", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, context: perspective, ...(group ? {participant:$("groupParticipant").value}: {}) }) });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Analysis failed.");
     if (result.obligations?.length) addGroup(result);
@@ -752,7 +776,7 @@ function wireEvents() {
     }
   }));
   document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
-  $("conversation").addEventListener("input", () => { $("charCount").textContent = $("conversation").value.length.toLocaleString() + " / 12,000"; });
+  $("conversation").addEventListener("input", () => { $("charCount").textContent = $("conversation").value.length.toLocaleString() + " / 12,000"; updateGroupIdentity(); });
   $("analyzeText").addEventListener("click", () => analyzeText());
   $("retryTranscript").addEventListener("click", () => analyzeText(state.lastVoicePerspective, $("transcriptText").value));
   $("audioFile").addEventListener("change", (event) => {
@@ -863,6 +887,7 @@ function wireEvents() {
   }
 }
 wireEvents();
+updateGroupIdentity();
 render();
 // Restore a previously authorized account without requesting a new signature or opening the wallet.
 if (window.ethereum?.request) {

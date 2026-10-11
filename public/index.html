@@ -33,6 +33,11 @@
         <div class="capture-body" id="pastePanel">
           <label for="conversation" class="field-label">WHAT DID THE CHAT SAY?</label>
           <textarea id="conversation" maxlength="12000" placeholder="“Hey, you still owe me $12 for the cab and $6 for lunch. Also, can you send me that venue address?”"></textarea>
+          <div id="groupIdentityPanel" class="group-identity hidden">
+            <label class="field-label" for="groupParticipant">GROUP CHAT · WHICH PARTICIPANT IS YOU?</label>
+            <select id="groupParticipant" class="speaker-select" aria-describedby="groupIdentityHelp"><option value="">Choose your name in this chat</option></select>
+            <p id="groupIdentityHelp">Only requests addressed to your selected participant can become payable. Other people's debts are not yours.</p>
+          </div>
           <div class="input-foot"><span>Text from anywhere, kept in your browser</span><span id="charCount">0 / 12,000</span></div>
           <button class="action-btn" type="button" id="analyzeText">Find the loose ends <span>✦</span></button>
         </div>

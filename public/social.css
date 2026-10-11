@@ -404,3 +404,9 @@ h2 em{font-weight:500;color:#ee8476}
 #recoveryDialog #recoveryLink { display: inline-block; margin: 10px 0 16px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 #recoveryDialog #recoveryNoSend { width: 100%; margin-top: 12px; padding: 12px 16px; }
 #recoveryDialog #recoveryNoSend.hidden { display: none; }
+
+/* Group chats are opt-in for speaker attribution: never guess a payer. */
+.group-identity { margin: 13px 0; padding: 15px; border-radius: 14px; background: rgba(36, 111, 87, .06); border: 1px solid rgba(36, 111, 87, .22); }
+.group-identity select { display: block; width: 100%; margin: 8px 0; }
+.group-identity p { font-size: .84rem; line-height: 1.45; margin: 6px 0 0; opacity: .78; }
+.group-identity.hidden { display: none; }

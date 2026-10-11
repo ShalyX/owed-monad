@@ -1,3 +1,5 @@
+import { taskIdentity } from "./atomic-tasks.js";
+
 // Re-analysis may recover a previously missed item. Keep existing user decisions,
 // especially completed tasks and onchain receipts, while appending only new items.
 const canonical = (value) => String(value || "").toLowerCase()
@@ -16,7 +18,10 @@ export function missingObligations(existing,updated) {
     const already = [...old,...additions].some(item=>
       item?.kind===candidate.kind &&
       evidenceOverlap(item.evidence,candidate.evidence) &&
-      (candidate.kind==="task" || item.amount===candidate.amount));
+      (candidate.kind==="task"
+        ? (taskIdentity(item)===taskIdentity(candidate) ||
+          (item.status==="done" && taskIdentity(item).startsWith("compound:") && evidenceOverlap(item.evidence,candidate.evidence)))
+        : item.amount===candidate.amount));
     if (!already) additions.push(candidate);
   }
   return additions;

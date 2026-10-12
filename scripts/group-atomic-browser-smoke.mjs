@@ -103,6 +103,15 @@ try{
     again.obligations.filter(x=>x.kind==="task"&&x.status==="open").length!==1)
     throw Error("Independent task states not preserved after reload: "+JSON.stringify(again.obligations));
  console.log("PASS_INDEPENDENT_COMPLETION_SURVIVES_RELOAD");
+ await js("(()=>{const inbox=JSON.parse(localStorage.getItem('owed-v1-inbox')||'[]');inbox.unshift({id:'legacy-group',fingerprint:'legacy-group',perspective:'group',source:'text',title:'Older group conversation',transcript:'Jules: Nia, send me $9.\\nNia: Okay.',groupContext:{participant:'Nia',participants:['Jules','Nia']},obligations:[{id:'legacy-money-1',kind:'money',direction:'i_owe',title:'Older $9 group debt',evidence:'Nia, send me $9.',amount:9,status:'open'}]});localStorage.setItem('owed-v1-inbox',JSON.stringify(inbox))})()");
+ await call("Page.reload",{ignoreCache:true});
+ let legacy;
+ for(let i=0;i<40;i++){
+   legacy=await js("(()=>{const card=document.querySelector('[data-item-id=legacy-money-1]');return card?{visible:true,pay:!!card.querySelector('[data-action=pay]'),locked:card.textContent.includes('Group transfer disabled'),modalOpen:document.querySelector('#payDialog')?.open}:null})()");
+   if(legacy?.visible)break;await sleep(250);
+ }
+ if(!legacy?.visible||legacy.pay||!legacy.locked||legacy.modalOpen)throw Error("Previously saved group record can still initiate payment: "+JSON.stringify(legacy));
+ console.log("PASS_LEGACY_GROUP_PAYMENT_LOCKED_AFTER_RELOAD");
  console.log("PASS_GROUP_AND_ATOMIC_HTTPS_BROWSER");
 }finally{
  try{socket?.close();}catch{}

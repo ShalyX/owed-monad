@@ -41,3 +41,11 @@
 - `audits/group-unseen40-frozen-20261011.json`, `audits/group-unseen40-baseline-20261011.json`, and `audits/group-unseen40-development-replay-20261013.json`
 - `audits/group-event-holdout20-frozen-20261013.json`, `audits/group-event-holdout20-result-20261013.json`
 - `scripts/group-development-replay.mjs` and `scripts/group-event-holdout20.mjs`
+
+## Production verification after deployment
+- Production commit: `cced59a`; Owed health endpoint returned healthy on the private VPS.
+- A fresh HTTPS Chrome run confirmed the Alex $12 and Shaly $25 cases were displayed as group obligations **without Pay in USDC**, alongside individually completable non-money tasks. The selected wrong-party Tunde remained uncharged.
+- A separately injected **older browser-saved group debt** remained nonpayable after refresh, proving that the lock does not rely on new group-result metadata.
+- Single-person HTTPS browser test confirmed a $0.01 USDC review still opens, requires recipient validation, and does not initiate a transfer without authorization; task completion persisted after a real refresh.
+- Parallel browser runs initially hit the intentional single-inference public concurrency limit. Re-running sequentially passed both. The browser smoke was adjusted to wait for reload completion instead of asserting after an arbitrary 600ms delay.
+- Existing wallet and receipt-recovery browser smoke and all 162 local automated tests passed. **No new wallet transfer was sent.**

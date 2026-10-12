@@ -77,8 +77,12 @@ try{
  const completed=await js("({done:JSON.parse(localStorage.getItem('owed-v1-inbox'))[0].obligations.some(x=>x.kind==='task'&&x.status==='done'),sent:!!window.ethereum})");
  if(!completed.done||completed.sent)throw Error("Task completion did not persist without wallet");
  await call("Page.reload",{ignoreCache:true});
- await sleep(600);
- const restored=await js("({cards:document.querySelectorAll('article.obligation').length,taskDone:document.querySelector('#inbox').textContent.includes('Task done'),pay:document.querySelectorAll('[data-action=pay]').length,wallet:!!window.ethereum?.request})");
+ let restored;
+ for(let i=0;i<50;i++){
+  restored=await js("({cards:document.querySelectorAll('article.obligation').length,taskDone:document.querySelector('#inbox')?.textContent.includes('Task done')||false,pay:document.querySelectorAll('[data-action=pay]').length,wallet:!!window.ethereum?.request})");
+  if(restored.cards===2&&restored.taskDone)break;
+  await sleep(300);
+ }
  if(restored.cards!==2||!restored.taskDone||restored.pay!==1||restored.wallet)throw Error("Saved inbox failed reload: "+JSON.stringify(restored));
  console.log("PASS_RELOAD_PRESERVES_TASK_AND_OPEN_MONEY "+JSON.stringify(restored));
 

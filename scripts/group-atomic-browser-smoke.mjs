@@ -59,11 +59,10 @@ try{
  if(alex.obligations.length!==1||alex.obligations[0].kind!=="money"||alex.obligations[0].amount!==12||alex.obligations[0].direction!=="i_owe")
   throw Error("Alex wrong debt: "+JSON.stringify(alex.obligations));
  const payable=await js("document.querySelectorAll('[data-action=pay]').length");
- if(payable!==1)throw Error("Direct group debt not payable after explicit selection: "+payable);
- console.log("PASS_NAMED_ALEX_ONLY_12_NOT_36");
- const dialog=await js("(()=>{document.querySelector('[data-action=pay]').click();return {open:document.querySelector('#payDialog').open,checked:document.querySelector('#recipientVerified').checked,recipient:document.querySelector('#recipientAddress').value}})()");
- if(!dialog.open||dialog.checked||dialog.recipient)throw Error("Group pay recipient was implicitly authorized: "+JSON.stringify(dialog));
- await js("document.querySelector('#payDialog').close();true");
+ if(payable!==0)throw Error("Group debt unexpectedly payable: "+payable);
+ const gate=await js("({text:document.querySelector('#inbox').textContent,payOpen:document.querySelector('#payDialog').open})");
+ if(!gate.text.includes("Group transfer disabled")||gate.payOpen)throw Error("Group payment UI safety failed: "+JSON.stringify(gate));
+ console.log("PASS_NAMED_ALEX_12_GROUP_PAYMENT_LOCKED");
  const airbnb="Amaka: Guys I've paid for the Airbnb. It was $120 total.\nTunde: That's $40 each for the three of us, right?\nShaly: I already sent $15 last night.\nAmaka: Oh true, just saw it. So Shaly you only have $25 left to send me.\nTunde: I'll sort my own $40 tomorrow.\nAmaka: Shaly also please send me the check-in details you got from the host.";
  panel=await fill(airbnb);
  if(!panel.groupVisible||!panel.options.includes("Shaly"))throw Error("Shaly option not detected");

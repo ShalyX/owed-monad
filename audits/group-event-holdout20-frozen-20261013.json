@@ -1,0 +1,262 @@
+{
+  "version": "withheld-v1",
+  "designedFor": "event-reconciler",
+  "notes": "Frozen before first replay, 20 novel conversations, no wallet interactions",
+  "cases": [
+    {
+      "id": "H01",
+      "participant": "Amaka",
+      "text": "Ira: Amaka, send me $4.75 for the badges.\nAmaka: Alright.",
+      "expected": {
+        "status": 200,
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 4.75,
+            "status": "open"
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "H02",
+      "participant": "Amaka",
+      "text": "Ira: Amaka, I owe you $6 for yesterday's bread.\nAmaka: Thanks.",
+      "expected": {
+        "status": 200,
+        "money": [
+          {
+            "direction": "owed_to_me",
+            "amount": 6,
+            "status": "open"
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "H03",
+      "participant": "Amaka",
+      "text": "Ira: We each spent roughly $30 there.\nAmaka: Indeed.\nTobi: Let's reconcile later.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "H04",
+      "participant": "Amaka",
+      "text": "Ira: Amaka, do not pay me $19 for the roses; consider it a gift.\nAmaka: Appreciate that.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "H05",
+      "participant": "Amaka",
+      "text": "Ira: Amaka, send me $12 for the bus.\nAmaka: I've sent it.\nIra: Received, we're settled.",
+      "expected": {
+        "status": 200,
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 12,
+            "status": "conversation_confirmed"
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "H06",
+      "participant": "Amaka",
+      "text": "Ira: Amaka, send me $30 for the badges.\nAmaka: Wait please.\nIra: Amaka, I meant $25, not $30. Send $25.",
+      "expected": {
+        "status": 200,
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 30,
+            "status": "cancelled"
+          },
+          {
+            "direction": "i_owe",
+            "amount": 25,
+            "status": "open"
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "H07",
+      "participant": "Amaka",
+      "text": "Ira: Someone in the group said 'send me $80 immediately'.\nAmaka: Seriously?\nTobi: Just a joke.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "H08",
+      "participant": "Maya",
+      "text": "Maya: I'm here.\nMay: Here too.\nIra: May, send me $8. Maya, forward the photo.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": [
+          "photo"
+        ]
+      }
+    },
+    {
+      "id": "H09",
+      "participant": "Amaka",
+      "text": "Ira: Amaka, forward the invitation and the entry pass.\nAmaka: Okay.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": [
+          "invitation",
+          "entry pass"
+        ]
+      }
+    },
+    {
+      "id": "H10",
+      "participant": "Amaka",
+      "text": "Ira: Amaka, can you call him?\nAmaka: Who?\nIra: The courier.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": [
+          "call"
+        ]
+      }
+    },
+    {
+      "id": "H11",
+      "participant": "Amaka",
+      "text": "Ira: Amaka, please share the door code.\nTobi: Amaka, upload the permit PDF.\nAmaka: Done soon.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": [
+          "door code",
+          "permit PDF"
+        ]
+      }
+    },
+    {
+      "id": "H12",
+      "participant": "Amaka",
+      "text": "Ira: Tobi, send me $55 for the meal.\nAmaka: I'm just watching.\nTobi: Okay.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "H13",
+      "participant": "Amaka",
+      "text": "Ira: Amaka, you owe me $14 for supplies.\nAmaka: Can I sort it tomorrow?",
+      "expected": {
+        "status": 200,
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 14,
+            "status": "open"
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "H14",
+      "participant": "Amaka",
+      "text": "Ira: Amaka, please send me your remaining $3.50.\nAmaka: Yes, I already covered the rest.",
+      "expected": {
+        "status": 200,
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 3.5,
+            "status": "open"
+          }
+        ],
+        "tasks": []
+      }
+    },
+    {
+      "id": "H15",
+      "participant": "Amaka",
+      "text": "Ira: Everyone should send $20.\nAmaka: Should I pay?\nIra: We haven't agreed who pays yet.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "H16",
+      "participant": "__observer__",
+      "text": "Ira: Amaka, send me $9 for the door tag.\nAmaka: Okay.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "H17",
+      "participant": "",
+      "text": "Ira: Amaka, send me $9 for the door tag.\nAmaka: Okay.",
+      "expected": {
+        "status": 422,
+        "money": [],
+        "tasks": []
+      }
+    },
+    {
+      "id": "H18",
+      "participant": "Amaka",
+      "text": "Ira: Amaka, send me a photo of Ade and Bola.\nAmaka: Can do.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": [
+          "photo"
+        ]
+      }
+    },
+    {
+      "id": "H19",
+      "participant": "Amaka",
+      "text": "Ira: Amaka, forward the room schedule.\nAmaka: I'll find it.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": [
+          "room schedule"
+        ]
+      }
+    },
+    {
+      "id": "H20",
+      "participant": "Amaka",
+      "text": "Ira: Amaka, you can pay me $16 only if the organiser confirms.\nAmaka: No confirmation yet.",
+      "expected": {
+        "status": 200,
+        "money": [],
+        "tasks": []
+      }
+    }
+  ]
+}

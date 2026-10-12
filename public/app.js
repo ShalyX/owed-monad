@@ -11,6 +11,7 @@ import { missingObligations } from "./obligation-merge.js";
 import { legacyPaymentWarning } from "./financial-context.js";
 import { findSourceAddresses } from "./address-hints.js";
 import { parseGroupTurns } from "./group-context.js";
+import { groupPaymentBlocked, GROUP_PAYMENT_MESSAGE } from "./group-payment-policy.js";
 import { atomizeOpenTasks } from "./atomic-tasks.js";
 
 const $ = (id) => document.getElementById(id);
@@ -101,8 +102,18 @@ function addGroup(group) {
   const savedGroup = state.groups.find((g) => g.fingerprint === group.fingerprint);
   if (savedGroup) {
     savedGroup.obligations=atomizeOpenTasks(savedGroup.obligations);
+    let reconciled=0;
+    if(group.groupContext && savedGroup.groupContext?.participant===group.groupContext.participant){
+      for(const latest of group.obligations||[]){
+        if(latest.kind!=="money" || !["conversation_confirmed","cancelled"].includes(latest.status))continue;
+        const old=savedGroup.obligations.find(x=>x.kind==="money"&&x.status==="open"&&x.direction===latest.direction&&
+          x.amount===latest.amount && x.evidence===latest.evidence);
+        if(old){old.status=latest.status;old.contextNote=latest.contextNote;reconciled++}
+      }
+      savedGroup.events=group.events||savedGroup.events;
+    }
     const recovered = missingObligations(savedGroup, group);
-    if (!recovered.length) return showNotice("This conversation is already in your inbox. No duplicates added.");
+    if (!recovered.length){if(reconciled){save();render();return showNotice("Updated "+reconciled+" group money item(s) using later conversation evidence. No onchain payment was inferred.")}return showNotice("This conversation is already in your inbox. No duplicates added.")}
     savedGroup.obligations.unshift(...recovered);
     save();
     render();
@@ -198,6 +209,8 @@ function statusFor(x) {
   if (x.status === "submitting") return ["review","Wallet outcome unknown"];
   if (x.status === "review") return ["review","Transfer needs review"];
   if (x.status === "dismissed") return ["dismissed","Dismissed · not paid"];
+  if (x.status === "conversation_confirmed") return ["review","Acknowledged in chat · not verified onchain"];
+  if (x.status === "cancelled") return ["review","Withdrawn in chat"];
   if (x.status === "done" && x.kind === "task") return ["completed","✓ Task done"];
   if (x.status === "failed") return ["review","Try again"];
   if (x.intent === "voluntary_request") return ["open",x.direction === "i_owe" ? "Your choice" : "You asked"];
@@ -207,10 +220,11 @@ function statusFor(x) {
 function itemMarkup(x,i=0) {
   const reviewWarning = x.kind === "money" && ["open","failed"].includes(x.status)
     ? legacyPaymentWarning(x,x.group?.transcript || "") : null;
-  const payout = x.kind === "money" && x.direction === "i_owe" && x.amount !== null && !reviewWarning;
+  const groupLocked = groupPaymentBlocked(x,x.group);
+  const payout = x.kind === "money" && x.direction === "i_owe" && x.amount !== null && !reviewWarning && !groupLocked;
   const sample = !!x.group.isSample;
   const [baseStatus,baseLabel] = statusFor(x);
-  const [statusKey,statusLabel] = reviewWarning ? ["review","Review before paying"] : [baseStatus,baseLabel];
+  const [statusKey,statusLabel] = groupLocked && ["open","failed"].includes(x.status) ? ["review","Group payment paused"] : reviewWarning ? ["review","Review before paying"] : [baseStatus,baseLabel];
   const actionId = escapeHTML(x.id);
   let controls = "";
   if (x.status === "pending") {
@@ -224,12 +238,16 @@ function itemMarkup(x,i=0) {
     controls = '<button class="small-btn" data-action="reopen" data-id="' + actionId + '">↶ Reopen</button>';
   } else if (x.status === "done" && x.kind === "task") {
     controls = '<button class="small-btn ghost" data-action="reopen-task" data-id="' + actionId + '">↶ Reopen task</button>';
+  } else if (x.status === "conversation_confirmed" || x.status === "cancelled") {
+    controls = '<span class="status-text">Conversation outcome · no onchain receipt</span>';
   } else if (x.status === "done" || x.status === "settled") {
     controls = '<span class="status-text">Receipt needs review</span>';
   } else if (payout) {
     controls = sample
       ? '<span class="sample-tag">✦ Example only · not payable</span>'
       : '<button class="small-btn solid" data-action="pay" data-id="' + actionId + '">' + (x.intent === "voluntary_request" ? "Send by choice" : "Pay in USDC") + ' <span>↗</span></button><button class="small-btn ghost" data-action="dismiss" data-id="' + actionId + '">' + (x.intent === "voluntary_request" ? "Pass · no payment" : "Dismiss · no payment") + '</button>';
+  } else if (groupLocked) {
+    controls = '<span class="status-text">Group transfer disabled · review only</span>';
   } else if (x.kind === "task") {
     controls = '<button class="small-btn solid" data-action="complete" data-id="' + actionId + '">Mark it done ✓</button>';
   } else {
@@ -244,7 +262,7 @@ function itemMarkup(x,i=0) {
   const evidenceLabel = x.group.source === "audio" || x.group.source === "recording"
     ? "FROM THE TRANSCRIPT · CHECK THE WORDS" : "FROM YOUR CONVERSATION";
   const statusSummary = x.status === "dismissed" ? '<p class="outcome-note">No USDC payment was made for this item.</p>' : "";
-  const contextMessage = reviewWarning || x.reviewReason || x.contextNote || "";
+  const contextMessage = groupLocked ? GROUP_PAYMENT_MESSAGE : reviewWarning || x.reviewReason || x.contextNote || "";
   const contextMarkup = contextMessage ? '<p class="financial-context-note">'+escapeHTML(contextMessage)+'</p>' : "";
   return '<article class="obligation status-'+statusKey+'" data-item-id="'+actionId+'" tabindex="-1" style="--i:'+Math.min(i,15)+'">'+
     '<div class="card-top"><div class="item-icon" aria-hidden="true">'+momentIcon(x)+'</div><div class="card-titles"><div class="item-title">'+escapeHTML(x.title)+'</div>'+
@@ -285,8 +303,8 @@ function updateMetric(id, value) {
 }
 function render() {
   const all = allItems();
-  const active = all.filter((x) => !["settled", "done", "dismissed"].includes(x.status));
-  const openMoney = active.filter((x) => x.kind === "money" && x.direction === "i_owe" && x.intent !== "voluntary_request" && x.amount != null && !x.group.isSample && !legacyPaymentWarning(x,x.group?.transcript || ""));
+  const active = all.filter((x) => !["settled", "done", "dismissed", "conversation_confirmed", "cancelled"].includes(x.status));
+  const openMoney = active.filter((x) => x.kind === "money" && x.direction === "i_owe" && x.intent !== "voluntary_request" && x.amount != null && !x.group.isSample && !legacyPaymentWarning(x,x.group?.transcript || "") && !groupPaymentBlocked(x,x.group));
   updateMetric("openCount", String(active.length).padStart(2, "0"));
   $("dockCount").textContent = String(active.length);
   $("dockCount").setAttribute("aria-label", active.length + (active.length === 1 ? " open item" : " open items"));
@@ -414,6 +432,7 @@ function payDialog(id) {
   if (!x || x.kind !== "money" || x.direction !== "i_owe" || x.amount === null || !["open", "failed"].includes(x.status)) return;
   const sourceGroup = state.groups.find((g) => g.obligations?.some((o) => o.id === id));
   if (sourceGroup?.isSample) return showNotice("Sample obligations cannot be paid. Analyze your own conversation first.", true);
+  if (groupPaymentBlocked(x,sourceGroup)) return showNotice(GROUP_PAYMENT_MESSAGE,true);
   const contextWarning = legacyPaymentWarning(x,sourceGroup?.transcript || "");
   if (contextWarning) return showNotice(contextWarning,true);
   state.paymentId = id;
@@ -523,7 +542,7 @@ async function refreshReceipt(id) {
 function payableMoneyItems() {
   return allItems().filter((x) => x.kind === "money" && x.direction === "i_owe" &&
     x.amount != null && ["open", "failed"].includes(x.status) && !x.group?.isSample &&
-    !legacyPaymentWarning(x, x.group?.transcript || ""));
+    !legacyPaymentWarning(x, x.group?.transcript || "") && !groupPaymentBlocked(x,x.group));
 }
 function updateWalletNextStep() {
   if (!isAddress(state.wallet)) return;
@@ -633,6 +652,7 @@ async function confirmPayment() {
   const x = itemById(state.paymentId);
   const note = $("paymentNotice");
   if (!x || !["open", "failed"].includes(x.status)) return;
+  if (groupPaymentBlocked(x,state.groups.find(g=>g.obligations?.some(item=>item.id===x.id)))) return showNotice(GROUP_PAYMENT_MESSAGE,true,$("paymentNotice"));
   const sourceGroup = state.groups.find(group => group.obligations?.some(item => item.id === x.id));
   const contextWarning = legacyPaymentWarning(x, sourceGroup?.transcript || "");
   if (contextWarning) return showNotice(contextWarning, true, note);

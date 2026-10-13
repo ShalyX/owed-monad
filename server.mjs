@@ -10,6 +10,7 @@ import { findVoluntaryRequests } from "./public/voluntary-request.js";
 import { getChainReceipt } from "./lib/chain-receipts.mjs";
 import { createPublicGate } from "./lib/public-gate.mjs";
 import { resolveGroupConversation } from "./lib/group-obligations.mjs";
+import { reverifyEditedMoney } from "./lib/source-reverify.mjs";
 
 // Pick up a newly saved local token without a server restart; never log it.
 function hfToken() {
@@ -159,6 +160,12 @@ export function makeServer(options = {}) {
       if (req.method === "GET" && url.pathname === "/api/receipt") {
         const txHash = url.searchParams.get("tx");
         return send(res, 200, await getChainReceipt(txHash));
+      }
+      if (req.method === "POST" && url.pathname === "/api/reverify-item") {
+        if (!(req.headers["content-type"] || "").includes("application/json")) return send(res,415,{error:"Expected JSON"});
+        const body=JSON.parse(await readBody(req));
+        // This does not authorize a payment or create a receipt.
+        return send(res,200,reverifyEditedMoney(body));
       }
       if (req.method === "POST" && url.pathname === "/api/analyze-text") {
         if (!(req.headers["content-type"] || "").includes("application/json")) return send(res, 415, { error: "Expected JSON" });

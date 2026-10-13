@@ -12,7 +12,7 @@ import { legacyPaymentWarning } from "./financial-context.js";
 import { findSourceAddresses } from "./address-hints.js";
 import { parseGroupTurns } from "./group-context.js";
 import { normalizeChatExport, isChatTextFile } from "./chat-import.js";
-import { canCorrect, applyItemCorrection } from "./item-review.js";
+import { canCorrect, applyItemCorrection, hasReverifiedSource, applySourceReview, reopenManualResolution } from "./item-review.js";
 import { groupPaymentBlocked, GROUP_PAYMENT_MESSAGE } from "./group-payment-policy.js";
 import { atomizeOpenTasks } from "./atomic-tasks.js";
 
@@ -228,6 +228,44 @@ function changeReviewSpeaker(){
  showNotice("Select the correct participant above and analyze again. A new perspective is saved separately; Owed will not relabel the old evidence automatically.");
  $("groupParticipant").focus();
 }
+function originalSourceCheckPayload(item,group) {
+ return {text:group?.transcript||"",
+   evidence:item.sourceEvidence||item.evidence||"",
+   amount:item.amount,direction:item.direction,
+   perspective:group?.perspective==="recording"||group?.source==="recording"?"recording":"incoming"};
+}
+async function fetchOriginalSourceCheck(item,group) {
+ if(!item||item.kind!=="money"||!group||group.isSample||groupPaymentBlocked(item,group))
+  throw new Error("Group and sample money items are not eligible for source payment checks.");
+ const response=await fetch("/api/reverify-item",{
+  method:"POST",headers:{"content-type":"application/json"},
+  body:JSON.stringify(originalSourceCheckPayload(item,group)),
+  signal:AbortSignal.timeout(18000)
+ });
+ if(!response.ok)throw new Error("Source verification service is unavailable. Payment remains disabled.");
+ const data=await response.json();
+ if(data?.basis!=="source_text_only"||data?.receiptVerified!==false)
+  throw new Error("The source verifier returned an unexpected result. Nothing was approved.");
+ return data;
+}
+async function recheckSource(id) {
+ const item=itemById(id),group=sourceGroupFor(id);
+ if(!item||item.kind!=="money"||item.status!=="needs_review"||!item.manualReviewOnly||
+   groupPaymentBlocked(item,group))return showNotice("This item cannot be promoted through source rechecking.",true);
+ if(state.checkingSource)return;
+ state.checkingSource=true;
+ showNotice("Rechecking the immutable original conversation. No wallet is involved.");
+ try{
+  const answer=await fetchOriginalSourceCheck(item,group);
+  if(itemById(id)!==item||item.status!=="needs_review")return;
+  const applied=applySourceReview(item,answer);
+  if(!applied.ok)throw new Error(applied.error);
+  save();render();
+  if(applied.supported)showNotice("The original words independently support this exact request. It is unpaid, not a blockchain receipt. Confirm the recipient and real-world debt before any optional testnet transfer.");
+  else showNotice(answer.reason+" This correction stays review-only; no transfer was enabled.",true);
+ }catch(e){showNotice((e.message||"Source recheck unavailable.")+" No transfer was enabled.",true)}
+ finally{state.checkingSource=false}
+}
 async function analyzeText(perspective = "incoming", transcriptOverride = null) {
   const text = typeof transcriptOverride === "string" ? transcriptOverride.trim() : $("conversation").value.trim();
   if (text.length < 8) return showNotice("Paste a conversation first (at least 8 characters).", true);
@@ -301,7 +339,8 @@ function statusFor(x) {
   if (x.status === "submitting") return ["review","Wallet outcome unknown"];
   if (x.status === "review") return ["review","Transfer needs review"];
   if (x.status === "dismissed") return ["dismissed","Dismissed · not paid"];
-  if (x.status === "needs_review") return ["review","Manually corrected · review only"];
+  if (x.status === "needs_review") return ["review","Correction needs source check"];
+  if (x.status === "open" && x.sourceVerification?.supported) return ["open","Source rechecked · unpaid"];
   if (x.status === "user_handled") return ["review","Marked handled · not verified onchain"];
   if (x.status === "conversation_confirmed") return ["review","Acknowledged in chat · not verified onchain"];
   if (x.status === "cancelled") return ["review","Withdrawn in chat"];
@@ -315,7 +354,7 @@ function itemMarkup(x,i=0) {
   const reviewWarning = x.kind === "money" && ["open","failed"].includes(x.status)
     ? legacyPaymentWarning(x,x.group?.transcript || "") : null;
   const groupLocked = groupPaymentBlocked(x,x.group);
-  const payout = x.kind === "money" && x.direction === "i_owe" && x.amount !== null && !reviewWarning && !groupLocked && !x.manualReviewOnly && ["open","failed"].includes(x.status);
+  const payout = x.kind === "money" && x.direction === "i_owe" && x.amount !== null && !reviewWarning && !groupLocked && hasReverifiedSource(x) && ["open","failed"].includes(x.status);
   const sample = !!x.group.isSample;
   const [baseStatus,baseLabel] = statusFor(x);
   const [statusKey,statusLabel] = groupLocked && ["open","failed"].includes(x.status) ? ["review","Group payment paused"] : reviewWarning ? ["review","Review before paying"] : [baseStatus,baseLabel];
@@ -329,7 +368,13 @@ function itemMarkup(x,i=0) {
   } else if (x.status === "settled" && /^0x[a-f\d]{64}$/i.test(x.txHash || "")) {
     controls = '<button class="small-btn solid" data-action="receipt" data-id="' + actionId + '">View receipt <span>↗</span></button>';
   } else if (x.status === "dismissed") {
-    controls = '<button class="small-btn" data-action="reopen" data-id="' + actionId + '">↶ Reopen</button>';
+    controls = '<button class="small-btn" data-action="' + (x.manualReviewOnly ? "reopen-reviewed" : "reopen") + '" data-id="' + actionId + '">↶ Reopen review</button>';
+  } else if (x.status === "user_handled") {
+    controls = '<button class="small-btn ghost" data-action="reopen-reviewed" data-id="' + actionId + '">↶ Review again</button>';
+  } else if (x.status === "needs_review") {
+    controls = groupLocked
+      ? '<span class="status-text">Group payment paused · review only</span>'
+      : '<button class="small-btn solid" data-action="check-source" data-id="' + actionId + '">↻ Recheck source</button>';
   } else if (x.status === "done" && x.kind === "task") {
     controls = '<button class="small-btn ghost" data-action="reopen-task" data-id="' + actionId + '">↶ Reopen task</button>';
   } else if (x.status === "conversation_confirmed" || x.status === "cancelled") {
@@ -358,7 +403,10 @@ function itemMarkup(x,i=0) {
   const statusSummary = x.status === "dismissed" ? '<p class="outcome-note">No USDC payment was made for this item.</p>' : "";
   const contextMessage = groupLocked ? GROUP_PAYMENT_MESSAGE : reviewWarning || x.reviewReason || x.contextNote || "";
   const correction=Array.isArray(x.reviewHistory)&&x.reviewHistory.length ? '<span class="status-text"> · Reviewed '+x.reviewHistory.length+'×</span>' : "";
-  const manualNote=x.manualReviewOnly? '<p class="financial-context-note">This card was corrected in your browser. It is not eligible for payment without fresh independent verification.</p>' : "";
+  const manualNote=x.manualReviewOnly
+    ? '<p class="financial-context-note">Corrected locally. Pay is disabled until the original conversation supports this exact request.</p>'
+    : x.sourceVerification?.supported
+      ? '<p class="financial-context-note">Rechecked against the original text · NOT an onchain payment or proof of recipient identity.</p>' : "";
   const reviewControl=canCorrect(x)&&!sample ? '<button class="small-btn ghost" data-action="edit-review" data-id="'+actionId+'">Correct ↗</button>' : "";
   const contextMarkup = contextMessage ? '<p class="financial-context-note">'+escapeHTML(contextMessage)+'</p>' : "";
   return '<article class="obligation status-'+statusKey+'" data-item-id="'+actionId+'" tabindex="-1" style="--i:'+Math.min(i,15)+'">'+
@@ -400,8 +448,8 @@ function updateMetric(id, value) {
 }
 function render() {
   const all = allItems();
-  const active = all.filter((x) => !["settled", "done", "dismissed", "conversation_confirmed", "cancelled"].includes(x.status));
-  const openMoney = active.filter((x) => x.kind === "money" && x.direction === "i_owe" && x.intent !== "voluntary_request" && x.amount != null && !x.group.isSample && !legacyPaymentWarning(x,x.group?.transcript || "") && !groupPaymentBlocked(x,x.group));
+  const active = all.filter((x) => !["settled", "done", "dismissed", "user_handled", "conversation_confirmed", "cancelled"].includes(x.status));
+  const openMoney = active.filter((x) => x.kind === "money" && x.direction === "i_owe" && x.intent !== "voluntary_request" && x.amount != null && !x.group.isSample && !legacyPaymentWarning(x,x.group?.transcript || "") && !groupPaymentBlocked(x,x.group) && ["open","failed"].includes(x.status) && hasReverifiedSource(x));
   updateMetric("openCount", String(active.length).padStart(2, "0"));
   $("dockCount").textContent = String(active.length);
   $("dockCount").setAttribute("aria-label", active.length + (active.length === 1 ? " open item" : " open items"));
@@ -530,7 +578,7 @@ function payDialog(id) {
   const sourceGroup = state.groups.find((g) => g.obligations?.some((o) => o.id === id));
   if (sourceGroup?.isSample) return showNotice("Sample obligations cannot be paid. Analyze your own conversation first.", true);
   if (groupPaymentBlocked(x,sourceGroup)) return showNotice(GROUP_PAYMENT_MESSAGE,true);
-  if(x.manualReviewOnly)return showNotice("Manually corrected money is review-only; it cannot start a USDC transfer.",true);
+  if(!hasReverifiedSource(x))return showNotice("This correction has not passed a source recheck. Review its original evidence before paying.",true);
   const contextWarning = legacyPaymentWarning(x,sourceGroup?.transcript || "");
   if (contextWarning) return showNotice(contextWarning,true);
   state.paymentId = id;
@@ -640,7 +688,7 @@ async function refreshReceipt(id) {
 function payableMoneyItems() {
   return allItems().filter((x) => x.kind === "money" && x.direction === "i_owe" &&
     x.amount != null && ["open", "failed"].includes(x.status) && !x.group?.isSample &&
-    !legacyPaymentWarning(x, x.group?.transcript || "") && !groupPaymentBlocked(x,x.group) && !x.manualReviewOnly);
+    !legacyPaymentWarning(x, x.group?.transcript || "") && !groupPaymentBlocked(x,x.group) && hasReverifiedSource(x));
 }
 function updateWalletNextStep() {
   if (!isAddress(state.wallet)) return;
@@ -751,7 +799,7 @@ async function confirmPayment() {
   const note = $("paymentNotice");
   if (!x || !["open", "failed"].includes(x.status)) return;
   if (groupPaymentBlocked(x,state.groups.find(g=>g.obligations?.some(item=>item.id===x.id)))) return showNotice(GROUP_PAYMENT_MESSAGE,true,$("paymentNotice"));
-  if(x.manualReviewOnly)return showNotice("Manually reviewed money cannot initiate a payment.",true,$("paymentNotice"));
+  if(!hasReverifiedSource(x))return showNotice("This corrected amount needs an independent source recheck.",true,$("paymentNotice"));
   const sourceGroup = state.groups.find(group => group.obligations?.some(item => item.id === x.id));
   const contextWarning = legacyPaymentWarning(x, sourceGroup?.transcript || "");
   if (contextWarning) return showNotice(contextWarning, true, note);
@@ -769,6 +817,17 @@ async function confirmPayment() {
   showNotice("Preparing wallet authorization. Nothing has been sent.", false, note);
   let walletRequestStarted = false;
   try {
+    // Any manual money correction must pass fresh independent source evidence
+    // at the moment of authorization, even if an earlier result was cached.
+    if(Array.isArray(x.reviewHistory)&&x.reviewHistory.some(entry=>entry.kind==="user_review")){
+      const fresh=await fetchOriginalSourceCheck(x,sourceGroup);
+      if(!fresh.supported||fresh.sourceKey!==x.sourceVerification?.sourceKey||
+         fresh.amount!==x.amount||fresh.direction!==x.direction){
+        x.status="needs_review";x.manualReviewOnly=true;delete x.sourceVerification;
+        save();render();
+        throw new Error("The original source no longer supports this exact correction. Payment disabled; review the message instead.");
+      }
+    }
     const from = await connectWallet();
     if (from.toLowerCase() === recipient.toLowerCase()) throw new Error("Self-payments are disabled.");
     await switchToMonad(window.ethereum);
@@ -944,6 +1003,11 @@ function wireEvents() {
     if (!item) return;
     if (btn.dataset.action === "pay") return payDialog(item.id);
     if (btn.dataset.action === "edit-review") return openItemReview(item.id);
+    if (btn.dataset.action === "check-source") return recheckSource(item.id);
+    if (btn.dataset.action === "reopen-reviewed") {
+      if(!reopenManualResolution(item))return showNotice("This outcome cannot be reopened as an unpaid correction.",true);
+      save();render();return showNotice("Reopened for source review. No payment was recorded.");
+    }
     if (btn.dataset.action === "check") return checkReceiptFor(item);
     if (btn.dataset.action === "recover") return openRecoveryDialog(item.id);
     if (btn.dataset.action === "receipt") return openReceipt(item.id);

@@ -8,6 +8,26 @@ const ask = /\b(?:can|could|would|may)\s+(?:i|you)\s+(?:please\s+)?(?:just\s+)?(
 const withdraw = /\b(?:never\s*mind|nevermind|forget(?:\s+about)?\s+(?:it|that|the\s+request)|my\s+treat|(?:do\s+not|don't)\s+(?:send|pay|transfer)\s+(?:anything|it|the\s+money)|(?:no\s+longer|don't|do\s+not)\s+need\s+(?:it|the\s+money)|cancel\s+(?:that|the\s+request))\b/i;
 const revision = /\b(?:make\s+(?:it|that)|change\s+(?:it|that)\s+to|instead|rather|\bor\b|actually\s+\$?|correction)\b/i;
 const reported = /\b(?:i|we|he|she|they|my\s+friend|[a-z]+)\s+(?:told|asked|said|wrote|texted|messaged|quoted)\b[^.!?;\n]{0,65}$/i;
+// Payment attribution is distinct from detecting money: a quotation about
+// someone else's obligation is not a request to the current user. This check
+// runs on the *whole source*, including text outside the model's short quote.
+export function thirdPartyDebtWarning(source) {
+  const text=String(source||"").trim();
+  if (!text) return "";
+  const money=/\b(?:owe|owed|pay|paid|send|transfer|repay|borrow)\b/i.test(text) &&
+    /\$\s*\d+(?:\.\d+)?|\b\d+(?:\.\d+)?\s*(?:USDC|USD|dollars?)\b/i.test(text);
+  if (!money) return "";
+  const overheard=/\b(?:i|we)\s+(?:overheard|heard|saw|read)\b[^.!?\n]{0,130}\b(?:tell|told|telling|said|say|saying|asked|ask|message|text|quote|owe|owed)\b/i;
+  const namedReported=/\b[A-Z][a-z]+\s+(?:told|asked|texted|messaged|quoted|said\s+to)\s+(?:[A-Z][a-z]+|him|her|them)\b/i;
+  const relay=/\b(?:someone|somebody|another\s+person|my\s+friend|his\s+friend|her\s+friend)\s+(?:said|told|asked|quoted)\b/i;
+  const quotation=/['“"][^'”"]{0,100}\b(?:owe|owed|pay|send|transfer)\b[^'”"]{0,100}['”"]/i;
+  const unrelated=/\b(?:i\s+don['’]?t\s+(?:need|owe)\s+(?:anything|money)|you\s+don['’]?t\s+owe\s+(?:me|anything))\b/i;
+  if(overheard.test(text)||namedReported.test(text)||relay.test(text)||
+    (quotation.test(text)&&(/\b(?:tell|told|said|asked|overheard|heard|joked|quoted)\b/i.test(text)||unrelated.test(text)))) {
+    return "This amount was reported or quoted about another conversation. Owed cannot assign it as a debt you should pay.";
+  }
+  return "";
+}
 function statements(text) {
   return sourceStatements(text);
 }
@@ -40,6 +60,8 @@ export function unsafeRequestSegments(source) {
 }
 export function unsafeMoneyRequestReason(item,source) {
   if(item?.kind!=="money")return "";
+  const reported=thirdPartyDebtWarning(source);
+  if(reported)return reported;
   const text=String(source||""),evidence=String(item.evidence||"").trim();
   if(!evidence)return "";
   // An acknowledged, completed payment is not a fresh money request.

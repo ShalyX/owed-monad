@@ -125,7 +125,12 @@ try {
   console.log("PASS_SETTLEMENT_SURVIVES_RELOAD");
   await js("(() => {const list=JSON.parse(localStorage.getItem('owed-v1-inbox'));list[0].obligations.push({id:'recover-2',kind:'money',direction:'i_owe',amount:0.01,status:'submitting',title:'Second coffee',evidence:'You still owe me 0.01 USDC for coffee.',payer:"+JSON.stringify(sender)+",recipientAddress:"+JSON.stringify(recipient)+",txHash:''});localStorage.setItem('owed-v1-inbox',JSON.stringify(list))})()");
   await call("Page.reload",{ignoreCache:true});
-  await sleep(900);
+  let readySecond=false;
+  for(let i=0;i<75;i++){
+    if(await js("!!document.querySelector('[data-id=recover-2][data-action=recover]')")){readySecond=true;break;}
+    await sleep(180);
+  }
+  if(!readySecond)throw Error("Second pending payment review did not render after reload");
   await js("document.querySelector('[data-id=recover-2][data-action=recover]').click()");
   await js("document.querySelector('#recoveryHash').value="+JSON.stringify(hash)+";document.querySelector('#recoveryVerify').click()");
   state=await js("({warning:document.querySelector('#recoveryNotice').textContent,items:JSON.parse(localStorage.getItem('owed-v1-inbox'))[0].obligations,sent:window.__walletTest.sent})");

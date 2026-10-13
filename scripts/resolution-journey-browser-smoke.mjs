@@ -41,7 +41,7 @@ try{
  async function select(name){return js("(()=>{const s=document.querySelector('#groupParticipant');s.value="+JSON.stringify(name)+";s.dispatchEvent(new Event('change',{bubbles:true}));return s.value})()")}
  async function submit(){await js("document.querySelector('#analyzeText').click();true")}
  async function waitFor(predicate,limit=70){
-  for(let i=0;i<limit;i++){const state=await js(predicate);if(state)return state;await sleep(350);}
+  for(let i=0;i<limit;i++){const state=await js(predicate);if(state===true)return state;await sleep(350);}
   throw Error("Timed out waiting for browser state");
  }
  const whatsApp=[
@@ -97,7 +97,7 @@ try{
  if(!corrected.check||corrected.pay)throw Error("Edited amount began payable without evidence: "+JSON.stringify(corrected));
  console.log("PASS_EDIT_WRONG_AMOUNT_BLOCKED");
  await js("document.querySelector('[data-item-id="+JSON.stringify(id)+"] [data-action=check-source]').click();true");
- await waitFor("(()=>{const g=JSON.parse(localStorage.getItem('owed-v1-inbox')).find(x=>x.transcript==="+JSON.stringify("Hey, you still owe me $0.01 for coffee. Send when you get a chance.")+");return g?.obligations.find(x=>x.id==="+JSON.stringify("__ITEM_ID_PLACEHOLDER__")+")?.reviewHistory?.some(e=>e.kind==='source_recheck')})()".replaceAll("__ITEM_ID_PLACEHOLDER__",id),80);
+ await waitFor("JSON.parse(localStorage.getItem('owed-v1-inbox')||'[]').flatMap(g=>g.obligations||[]).some(x=>x.id==="+JSON.stringify(id)+"&&x.reviewHistory?.some(e=>e.kind==='source_recheck'&&e.sourceSupported===false))",100);
  let result=JSON.parse(await js("JSON.stringify(JSON.parse(localStorage.getItem('owed-v1-inbox')).find(x=>x.transcript==="+JSON.stringify("Hey, you still owe me $0.01 for coffee. Send when you get a chance.")+"))"));
  moneyItem=result.obligations.find(x=>x.id===id);
  if(moneyItem.status!=="needs_review"||moneyItem.manualReviewOnly!==true)throw Error("Unsubstantiated amount was promoted");
@@ -105,7 +105,11 @@ try{
  await js("document.querySelector('[data-item-id="+JSON.stringify(id)+"] [data-action=edit-review]').click();true");
  await js("(()=>{document.querySelector('#reviewAmountInput').value='0.01';document.querySelector('#reviewStatus').value='needs_review';document.querySelector('#saveItemReview').click()})()");
  await js("document.querySelector('[data-item-id="+JSON.stringify(id)+"] [data-action=check-source]').click();true");
- await waitFor("(()=>{const all=JSON.parse(localStorage.getItem('owed-v1-inbox'));const m=all.flatMap(x=>x.obligations||[]).find(x=>x.id==="+JSON.stringify("__ITEM_ID_PLACEHOLDER__")+");return m?.status==='open'&&m?.sourceVerification?.supported})()".replaceAll("__ITEM_ID_PLACEHOLDER__",id),80);
+ try { await waitFor("JSON.parse(localStorage.getItem('owed-v1-inbox')||'[]').flatMap(g=>g.obligations||[]).some(x=>x.id==="+JSON.stringify(id)+"&&x.status==='open'&&x.sourceVerification?.supported===true)",100);
+ } catch(e) {
+ const details=await js("JSON.stringify({notice:document.querySelector('#notice')?.textContent,record:JSON.parse(localStorage.getItem('owed-v1-inbox')||'[]').flatMap(g=>g.obligations||[]).find(x=>x.id==="+JSON.stringify(id)+")})");
+ throw Error("Source supported state not reached: "+details);
+ }
  corrected=await js("(()=>{const x=document.querySelector('[data-item-id="+JSON.stringify(id)+"]');return {pay:!!x.querySelector('[data-action=pay]'),text:x.textContent}})()");
  if(!corrected.pay||!corrected.text.includes("Source rechecked"))throw Error("Revalidated debt not available for optional review "+JSON.stringify(corrected));
  console.log("PASS_SOURCE_SUPPORTED_UNPAID_CARD");

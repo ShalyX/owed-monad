@@ -26,3 +26,11 @@
 ## Test and verification
 - Unit tests include direct grounded money, invented amount, invented source, reversed direction, conditional payments, withdrawal, recorded settlement, group rejection, origin/quota protections, corrected money lifecycle, and edits invalidating prior support.
 - End-to-end browser scripts exercise fresh source recheck, rejected unsupported amounts, nonpayable manual states, recipient review, recovery and refresh persistence. They do not sign or broadcast a new blockchain transaction.
+
+## Production verification
+- First implementation: `db08f84` deployed successfully to the private VPS. Service was active and the health endpoint reported inference configured on Monad Testnet.
+- The complete *fresh HTTPS browser* resolution journey passed: WhatsApp import → speaker identity → original evidence preservation → reject invented $0.02 correction → promote source-grounded $0.01 correction to unpaid → recipient review with no pre-approved address → explicitly handle outside Owed → refresh → reopen for review. **No transaction was signed or sent.**
+- The first run of this new browser test reported a false failure because its asynchronous wait expression did not reliably return a Boolean for the target item; direct browser state showed that the source-supported correction had actually succeeded. The test was fixed to wait for the exact item ID and required state, then passed.
+- Existing public HTTPS first-use and group-context browser walkthroughs passed: recipient checks, independent task completion, persistence, group payment lock, and legacy group records.
+- Mock-wallet smoke passed connection, wrong-network messaging and a payment-review gate; mock receipt-recovery smoke passed interrupted signature journal, recovering an existing transfer without a wallet, persistence after refresh, and preventing the same transaction hash from settling a second debt. An initial Chrome startup/reload timing issue was addressed in the smoke harness; the completed retry passed.
+- No new actual Monad testnet transfer was performed; verified receipt behavior relies on existing onchain-tested functionality and mock failure paths.

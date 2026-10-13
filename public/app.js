@@ -134,19 +134,10 @@ function addGroup(group) {
     : "No explicit request found. If this was a voice note, please check the transcript before assuming nothing is owed."));
 }
 function updateGroupIdentity(){
-  const exportView=normalizeChatExport($("conversation").value);
-  const group=parseGroupTurns(exportView.recognized && !exportView.tooLong?exportView.normalized:$("conversation").value);
-  const panel=$("groupIdentityPanel"),select=$("groupParticipant");
-  panel.classList.toggle("hidden",!group);
-  if(!group){select.replaceChildren(new Option("Choose your name in this chat",""));delete select.dataset.signature;return;}
-  const signature=group.participants.join("|");
-  if(select.dataset.signature===signature)return;
-  const previous=select.value;
-  select.replaceChildren(new Option("Choose your name in this chat",""));
-  for(const name of group.participants)select.add(new Option(name,name));
-  select.add(new Option("I'm not a participant","__observer__"));
-  select.dataset.signature=signature;
-  if([...select.options].some(o=>o.value===previous))select.value=previous;
+  // Group conversations are out of scope for the hackathon build.
+  // Keep the historical DOM node for older saved records, but never
+  // offer a way to create a new group obligation.
+  $("groupIdentityPanel").classList.add("hidden");
 }
 async function importChatFile(){
  const file=$("chatTextFile").files?.[0];
@@ -156,8 +147,8 @@ async function importChatFile(){
  try{
   const raw=await file.text();
   const parsed=normalizeChatExport(raw);
-  if(parsed.tooLong)return showNotice("This export has "+parsed.normalizedLength+" characters after normalization. Select a shorter conversation; Owed will not silently discard messages.",true);
-  const normalized=parsed.recognized?parsed.normalized:raw.replace(/\r\n?/g,"\n").trim();
+  if(parsed.recognized)return showNotice("Group chat exports are out of scope for this hackathon build. Paste a single message or import a voice note instead.",true);
+  const normalized=raw.replace(/\r\n?/g,"\n").trim();
   if(normalized.length<8||normalized.length>12000)return showNotice("The chat text must be 8–12,000 characters. No messages were imported.",true);
   state.importedChatSource={original:raw,normalized,info:parsed.recognized?{
     format:parsed.format,count:parsed.count,entries:parsed.entries,filename:file.name}:{
@@ -273,8 +264,7 @@ async function analyzeText(perspective = "incoming", transcriptOverride = null) 
   if(parsed.recognized&&parsed.tooLong)return showNotice("This export has "+parsed.normalizedLength+" characters after normalization. Choose a shorter excerpt (12,000 maximum); nothing was truncated.",true);
   const input=parsed.recognized ? parsed.normalized : text;
   const group=parseGroupTurns(input);
-  if(group && typeof transcriptOverride !== "string" && !$("groupParticipant").value)
-    return showNotice("Choose which group-chat participant is you before analysing. Owed won't guess who owes whom.",true);
+  if(group)return showNotice("Group conversations are not supported in this hackathon build. Paste one person's message or record a voice note instead.",true);
   setProcessing(true, "Reading the conversation and extracting explicit obligations…");
   try {
     const response = await fetch("/api/analyze-text", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text:input, context: perspective, ...(group ? {participant:$("groupParticipant").value}: {}) }) });

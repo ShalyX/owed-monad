@@ -1,6 +1,6 @@
 # Owed — From conversation to completion
 
-**Live public demo (HTTPS):** [owed-monad.tail5a7dd1.ts.net](https://owed-monad.tail5a7dd1.ts.net/). Powered by Tailscale Funnel, so judges do not need a Tailscale account or the owner's Windows PC. This is a testnet pilot; Funnel is in beta and availability depends on our VPS. See [PUBLIC_DEMO_RUNBOOK.md](PUBLIC_DEMO_RUNBOOK.md) for verification and the remaining real-wallet settlement check.
+**Live public demo (HTTPS):** [owed-monad.tail5a7dd1.ts.net](https://owed-monad.tail5a7dd1.ts.net/). **[Watch the narrated Metropolis demo (1m 45s)](https://owed-monad.tail5a7dd1.ts.net/owed-metropolis-demo.mp4).** Powered by Tailscale Funnel, so judges do not need a Tailscale account or the owner's Windows PC. This is a testnet pilot; Funnel is in beta and availability depends on our VPS. See [PUBLIC_DEMO_RUNBOOK.md](PUBLIC_DEMO_RUNBOOK.md) for verification and the remaining real-wallet settlement check.
 
 A Monad Testnet MVP: paste messages, record voice, or import a voice note. Local Whisper transcribes speech; the current private VPS uses Qwen2.5 0.5B plus source-grounded safety checks to extract obligations (Hugging Face/Gemma is an optional alternate lane). The user reviews what to complete. For money owed, Owed requests a wallet-signed native Circle USDC transfer on Monad Testnet, then verifies the transaction receipt before marking it settled.
 
@@ -44,7 +44,7 @@ Circle USDC testnet contract: 0x534b2f3A21130d7a60830c2Df862319e593943A3 (6 deci
 Explorer: https://testnet.monadvision.com.
 Users need testnet MON for gas plus Circle testnet USDC.
 
-**Honesty boundary:** Code/test verification is not a proven funded transaction. The repository currently contains NO verified live transaction hash. Do not claim one until funded wallet execution is tested and the chain receipt independently checked.
+**Verified testnet evidence:** An earlier wallet-authorized **0.01 USDC** transfer was independently checked against Monad Testnet RPC, the ERC-20 calldata, sender, recipient, amount and successful receipt: [transaction 0x1b2b…0e371f](https://testnet.monadvision.com/tx/0x1b2bf93586941a3e9126081e3ac97c950e52ece2b1a71cd4705ed96e370e371f). No fresh transaction was signed for the narrated Metropolis demo.
 
 ## Security and privacy limits
 
@@ -56,9 +56,9 @@ Users need testnet MON for gas plus Circle testnet USDC.
 - Browser wallet confirmations and a local verified-receipt view do not establish legal payment obligations or recipient identity.
 - Testnet only. No real-value transfers supported in this MVP.
 
-## What comes after the verified end-to-end payment
+## Submission material
 
-Test with genuine audio and external wallets, improve ambiguous money detection, build installable PWA share-target support for supported messages/audio (Android first), then polish and record a real demo.
+See [Metropolis submission copy](METROPOLIS_SUBMISSION.md), [focused hackathon walkthrough](HACKATHON_FINAL.md), and the [narrated public demo](https://owed-monad.tail5a7dd1.ts.net/owed-metropolis-demo.mp4). This is the completed one-to-one hackathon scope, not a claim of production readiness.
 
 ## Upstream
 

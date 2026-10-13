@@ -1,109 +1,69 @@
-# Owed — From conversation to completion
+# Owed
 
-**Live public demo (HTTPS):** [owed-monad.tail5a7dd1.ts.net](https://owed-monad.tail5a7dd1.ts.net/). **[Watch the narrated Metropolis demo (1m 45s)](https://owed-monad.tail5a7dd1.ts.net/owed-metropolis-demo.mp4).** Powered by Tailscale Funnel, so judges do not need a Tailscale account or the owner's Windows PC. This is a testnet pilot; Funnel is in beta and availability depends on our VPS. See [PUBLIC_DEMO_RUNBOOK.md](PUBLIC_DEMO_RUNBOOK.md) for verification and the remaining real-wallet settlement check.
+**From conversations to completion.** Owed turns the little promises buried in one-to-one conversations into separate, reviewable money requests and follow-ups. Eligible payments can be settled with wallet-approved USDC on **Monad Testnet**.
 
-A Monad Testnet MVP: paste messages, record voice, or import a voice note. Local Whisper transcribes speech; the current private VPS uses Qwen2.5 0.5B plus source-grounded safety checks to extract obligations (Hugging Face/Gemma is an optional alternate lane). The user reviews what to complete. For money owed, Owed requests a wallet-signed native Circle USDC transfer on Monad Testnet, then verifies the transaction receipt before marking it settled.
+[**Try Owed**](https://owed-monad.tail5a7dd1.ts.net/) · [**Watch the working-product demo**](https://owed-monad-submission-videos.vercel.app/technical.mp4) · [**Pitch video**](https://owed-monad-submission-videos.vercel.app/pitch.mp4) · [**Videos and motion experiments**](https://owed-monad-submission-videos.vercel.app/)
 
-## Hackathon scope
+> This is a hackathon prototype running on Monad Testnet, not a production payment service. The public app is served through Tailscale Funnel on an owner-operated VPS; availability is not guaranteed.
 
-**One-to-one only.** Paste one person's message, record a reminder, or import a voice note. Review money and to-dos independently; settle eligible USDC amounts on **Monad Testnet** with an explicit recipient and wallet confirmation. Multi-person group-chat analysis is deliberately unavailable in this release. Previously saved group records remain review-only and cannot initiate payments.
+## What it does
 
-**Safety boundary:** Owed treats quoted debts about other people as background, not debts you owe. A user-confirmed off-platform completion is not an onchain receipt. It is a testnet prototype, not a money transfer recommendation.
+- **Capture:** Paste a direct message, record a spoken reminder, or import a voice note / supported text note.
+- **Understand:** Whisper transcription and a private Qwen2.5 inference worker (or an optional Hugging Face provider) help identify obligations. Deterministic checks validate monetary evidence and context.
+- **Separate:** Show each independent money request and follow-up in its own card, citing the source words.
+- **Complete:** Finish or reopen to-dos without changing the state of a separate money request.
+- **Review and pay:** Where eligible, review the amount and independently verified recipient, authorize the transfer with a browser wallet, and confirm settlement only after matching the on-chain USDC transfer and successful receipt.
 
-## Why it exists
+**Scope:** One-to-one conversations only in this release. Group conversations are not supported for new payable actions; older saved group items remain review-only. A request for optional help is not automatically a debt.
 
-Real conversations create multiple loose ends: debts, favors, requests, plans. Owed keeps them together rather than forcing the user into a wallet before they know what they owe. This is a distinct new product inspired by the upstream VoiceDebt project (https://github.com/ShalyX/voicedebt); its UI and payment workflow were developed for Monad.
+## Quick start
 
-## Running locally
+Requires **Node.js 22+**. The app server uses built-in Node modules, so no dependency installation is required for the basic flow.
 
-Requires Node.js 22+ and an injected EVM browser wallet for payments.
+```bash
+npm run check
+cp .env.example .env
+# Configure HF_TOKEN in .env for the optional hosted inference lane.
+node --env-file=.env server.mjs
+```
 
-1. Copy .env.example to .env.
-2. Set HF_TOKEN in .env. Never commit this file.
-3. In PowerShell, run: node --env-file=.env server.mjs
-4. Open http://localhost:3000.
-5. To run tests, use: npm run check
+Open **http://localhost:3000**. On Windows, copy the environment file using `Copy-Item .env.example .env` instead of `cp` if needed. Never commit `.env` or share model tokens. The deployed VPS uses a separately authenticated private inference worker rather than a visitor-provided Hugging Face key.
 
-For local mode without `LOCAL_INFERENCE_URL`, analysis requires an HF_TOKEN. The current VPS deployment instead uses a separately authenticated private inference worker, so visitors do **not** need Hugging Face credentials.
+To verify the Monad RPC and testnet USDC contract: `npm run probe:monad`. Network and funded-wallet tests are separate from unit tests.
 
-## What is implemented
+## Network and verified evidence
 
-- Paste conversations for source-grounded structured obligation extraction. The live private VPS uses Qwen2.5 0.5B plus deterministic financial-context checks; Hugging Face/Gemma is an optional alternate provider.
-- Record microphone audio with MediaRecorder or import audio under 18 MB; local Whisper transcribes, and Qwen2.5 handles the current VPS inference lane.
-- Store the extracted obligations and source text in browser localStorage, with duplicate-source fingerprints.
-- Split money owed, money owed to you, and ordinary tasks. Manual completion for non-payable items.
-- Block model-generated wallet addresses. The user must independently verify and enter an EVM recipient address.
-- Explicit checkbox, exact amount confirmation, wallet connection, automatic Monad Testnet switch/add.
-- Wallet-signed USDC ERC-20 transfer to the canonical testnet token contract.
-- Persist pending tx hash and recheck on reload. Require exact USDC Transfer event, payer, recipient, amount and successful receipt before displaying settled.
+- **Network:** Monad Testnet, chain ID `10143`.
+- **Token:** Circle's testnet USDC at `0x534b2f3A21130d7a60830c2Df862319e593943A3` (6 decimals).
+- **Historical on-chain evidence:** A wallet-approved **0.01 USDC** transfer was independently checked against the transaction, token transfer data and receipt: [view the testnet transaction](https://testnet.monadvision.com/tx/0x1b2bf93586941a3e9126081e3ac97c950e52ece2b1a71cd4705ed96e370e371f).
 
-## Payment network
+The technical walkthrough demonstrates live analysis, separate actions, payment review and persistence. **It does not execute a new transfer.** Illustrative motion videos are marketing material, not transaction proof.
 
-Monad Testnet: chain ID 10143; RPC https://testnet-rpc.monad.xyz.
-Circle USDC testnet contract: 0x534b2f3A21130d7a60830c2Df862319e593943A3 (6 decimals).
-Explorer: https://testnet.monadvision.com.
-Users need testnet MON for gas plus Circle testnet USDC.
+## Architecture and limits
 
-**Verified testnet evidence:** An earlier wallet-authorized **0.01 USDC** transfer was independently checked against Monad Testnet RPC, the ERC-20 calldata, sender, recipient, amount and successful receipt: [transaction 0x1b2b…0e371f](https://testnet.monadvision.com/tx/0x1b2bf93586941a3e9126081e3ac97c950e52ece2b1a71cd4705ed96e370e371f). No fresh transaction was signed for the narrated Metropolis demo.
+`Browser UI (public/)` → `Node HTTP API (server.mjs)` → `authenticated private inference worker` → `local speech/text models`.
 
-## Security and privacy limits
+The browser holds source conversations and state in `localStorage`, which is neither encrypted nor synced across devices. Model outputs can be inaccurate; source evidence must be checked by the user. Owed does not accept model-inferred recipient addresses, does not automatically sign transactions and cannot establish legal liability or recipient identity. Text/audio inference runs on the VPS in the public deployment.
 
-- Model output is advisory; it cannot initiate a payment or select a recipient wallet.
-- The server never collects wallet signing credentials, and has no server-side payment execution endpoint.
-- Source evidence must be an exact substring; extracted monetary amount must be explicitly present in that quoted evidence.
-- The app uses browser localStorage, not an auditable server-side ledger; it is not tamper-resistant, cross-device or encrypted.
-- In the current public demo, analysis data/audio is processed on the private VPS without deliberate server-side storage. In optional Hugging Face mode, model-provider data processing applies. Browser localStorage retains the saved data.
-- Browser wallet confirmations and a local verified-receipt view do not establish legal payment obligations or recipient identity.
-- Testnet only. No real-value transfers supported in this MVP.
+## Repository guide
 
-## Submission material
+| Path | Purpose |
+| --- | --- |
+| `public/` | Browser app, styles, user interactions, payment and recovery UI |
+| `lib/` | Server-side analysis, receipt verification and safeguards |
+| `server.mjs` | HTTP server and analysis endpoints |
+| `tests/` | Regression and safety tests (`npm run check`) |
+| `scripts/` | Developer diagnostics, VPS deployment and browser checks |
+| `audits/` | Reproducible evaluation fixtures and results |
+| `docs/research/` | Historical evaluation and engineering reports |
+| `docs/operations/` | Advanced setup and historical implementation notes |
 
-See [Metropolis submission copy](METROPOLIS_SUBMISSION.md), [focused hackathon walkthrough](HACKATHON_FINAL.md), and the [narrated public demo](https://owed-monad.tail5a7dd1.ts.net/owed-metropolis-demo.mp4). This is the completed one-to-one hackathon scope, not a claim of production readiness.
+### Release and hackathon documentation
 
-## Upstream
+- [Public deployment and verification runbook](PUBLIC_DEMO_RUNBOOK.md)
+- [Hackathon product walkthrough](HACKATHON_FINAL.md)
+- [Metropolis submission notes](METROPOLIS_SUBMISSION.md)
+- [Paste-ready submission fields](METROPOLIS_PORTAL_FIELDS.md)
+- [Research archive](docs/research/README.md)
 
-Owed was developed by adapting the broad Whisper/Gemma transcription approach from VoiceDebt, without replacing or mutating that repository.
-
-## Live verification workflow (October 8)
-
-**Local model setup:** Edit `C:\Users\USER\owed-monad\.env` in Notepad (or double-click `SETUP-HF.cmd` to open it). Replace the blank `HF_TOKEN=` with `HF_TOKEN=hf_your_actual_token`, keeping the model lines unchanged. Save the file. The `.env` file is Git-ignored; never paste tokens into chat or commit them. The running Owed server checks for a newly saved token on analysis requests, so restart is unnecessary. No custom token-validation dialog is required.
-
-**Real-model tests:** From PowerShell in this repo, run `npm run test:live -- tests/voice-smoke.wav`. The audio fixture is a small synthetic speech recording generated on the PC (ignored by Git). This command calls the actual Hugging Face Gemma and Whisper services and fails if either response is unavailable. Accept Google's Gemma model terms on Hugging Face and ensure the HF token has Inference Providers permission if the response is 403. Provider credits or quota may apply.
-
-**RPC proof:** `npm run probe:monad` checks chain identity, deployed USDC bytecode and the 6-decimal token interface using a live public Monad Testnet RPC. This is infrastructure verification, NOT a settled payment.
-
-**First actual payment (browser wallet):**
-1. Open `https://owed-monad.tail5a7dd1.ts.net/` with an injected browser EVM wallet (e.g. MetaMask or Rabby) and use Monad Testnet. A local development server can alternatively run at `http://localhost:3000`.
-2. Fund the connected address with faucet MON for gas from https://faucet.monad.xyz/ and Circle testnet USDC from https://faucet.circle.com/ (select Monad Testnet). Faucets may require user interaction.
-3. Paste a real small debt message, e.g. `You still owe me 0.01 USDC for coffee.`, and analyze with the configured inference provider (the private VPS uses Qwen2.5). Do not use the nonpayable sample card.
-4. Open Pay, supply a recipient testnet address confirmed independently by the user, check the verification box and approve the exact USDC transfer in the wallet.
-5. Wait for Owed to mark **Settled** only after it sees the exact matching ERC-20 Transfer event on a successful transaction receipt.
-6. Independently verify using `npm run verify:payment -- 0xTXHASH 0xPAYER 0xRECIPIENT 0.01`. The verifier checks Monad Testnet chain ID, the signed transaction's USDC destination and exact calldata, receipt status, and Transfer event fields before printing VERIFIED.
-
-**Current evidence:** Automated tests, a live private Whisper + Qwen voice-to-obligation smoke test, and the public-RPC token probe have passed. The user reported an actual Monad Testnet USDC transfer through the app; its private transaction details are not reproduced here. Never substitute synthetic responses or a mock receipt for independently verified on-chain evidence.
-
-## Zero-cost VPS inference (private test lane)
-
-This project supports a paid Hugging Face mode for reference, but our current working lane uses **no paid inference**:
-- `faster-whisper` with `base.en` (int8 CPU) for better conversational speech recognition. It uses more memory than `tiny.en`; test resource limits when moving to a different VPS.
-- Ollama `qwen2.5:0.5b` for structured obligation extraction. This is NOT Gemma; it requires careful human review.
-- `scripts/inference-worker.py` listens on `127.0.0.1:18765`, requires `OWED_WORKER_TOKEN` bearer authentication, and serializes work (one request at a time). The official model server listens on `127.0.0.1:11434`. Neither port is public.
-- `scripts/install-vps-worker.sh` provisions a dedicated unprivileged user and a memory/CPU-capped systemd worker; the token is generated and stored on the VPS at `/etc/owed-inference.env`, **never in GitHub**. The VPS Ollama service also has its own CPU/memory cap in `/etc/systemd/system/ollama.service.d/owed-limits.conf`.
-- Owed's Node server can be colocated on the VPS with `LOCAL_INFERENCE_URL=http://127.0.0.1:18765`, loading the auth token via `EnvironmentFile=/etc/owed-inference.env`. Use `HOST=127.0.0.1` and forward its web port through SSH when testing from your PC; do not expose the HTTP port to the internet without adding HTTPS and application auth.
-- To forward: `ssh -N -L 127.0.0.1:3001:127.0.0.1:3001 caraxes-vps`. Open `http://localhost:3001` on the PC. Wallet authorization still occurs in the user's own injected wallet.
-
-**Financial-context safety:** A clearly phrased request for financial help is stored as a voluntary Money request—not an existing debt. It does not increase the "You owe" total, and any optional transfer requires independent recipient verification plus wallet signing. The same Money / To-dos interface also distinguishes conditional payments (not yet owed), supported corrections (new amount supersedes old), and explicit equal splits (only the individual share, never the full group total). Ambiguous corrections, splits, and fractional shares are not payable. Previously saved money items are also rechecked before the Pay modal and wallet authorization; verified receipts and completed tasks are not rewritten. The source quote and any calculation stay visible for review. These are conservative safeguards, not full conversational understanding.
-
-**Safety:** No AI-generated recipient address is trusted; source quotes are verified against the actual transcript. Money/transcription ambiguity requires review, and transfers always require explicit wallet confirmation and on-chain event verification. A 0.5B model is not production-grade reasoning; never auto-pay.
-
-**Troubleshooting:** `faster-whisper` 1.2.1 currently needs `av<19`; PyAV 19 dropped the `metadata_errors` argument its decoder uses. Audio weights are downloaded once for free from Hugging Face Hub (not billed inference). The VPS is resource-constrained; if model processing times out or would disturb running services, scale down or disable the worker rather than kill unrelated services.
-
-### Verified VPS pilot
-
-As of 2026-10-08, `caraxes-vps` runs two *private loopback-only* systemd services: `owed-inference.service` on `127.0.0.1:18765` and `owed-app.service` on `127.0.0.1:3001`. Ollama is loopback-only on `127.0.0.1:11434`. All three have resource limits. Other existing VPS services have been left running.
-
-On the authorized Windows PC, double-click **`CONNECT-VPS.cmd`** to open a private SSH tunnel and the live app at **http://localhost:3001**. Browser wallets remain entirely on the PC. If the SSH tunnel closes or the PC restarts, run the shortcut again. This is a private pilot, not a public HTTPS deployment.
-
-The live synthetic smoke test is `/opt/owed-worker/node /opt/owed-app/scripts/test-vps-e2e.mjs` (run over SSH). It requires a real Qwen text response and actual Whisper transcription; the strict source-quote validation and conservative literal-debt fallback work together. Explicit amounts written as number words may be extracted when grounded in a direct source quote. Ambiguous amounts such as "two fifty" remain unpriced and require human correction. All extracted voice requests must be checked against the visible transcript before payment.
-
-**Still unproven:** An actual funded Circle USDC transfer from a user's browser wallet followed by an independently matched Monad receipt. The automated chain/receipt unit tests do not substitute for this.
+Owed builds on the voice-transcription exploration behind [VoiceDebt](https://github.com/ShalyX/voicedebt) but is a distinct product with its own Monad payment flow and design.

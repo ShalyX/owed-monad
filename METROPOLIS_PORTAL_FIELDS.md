@@ -32,7 +32,8 @@ Node.js, JavaScript/HTML/CSS, Whisper-based private voice transcription, Qwen2.5
 
 **Demo URL:** https://owed-monad.tail5a7dd1.ts.net/
 
-**Demo video URL (1m 45s):** https://owed-monad.tail5a7dd1.ts.net/owed-metropolis-demo.mp4
+**Current technical demo (1m 16s):** https://owed-monad-submission-videos.vercel.app/technical.mp4
+**Prior narrated walkthrough (1m 45s):** https://owed-monad.tail5a7dd1.ts.net/owed-metropolis-demo.mp4
 
 **GitHub URL:** https://github.com/ShalyX/owed-monad
 

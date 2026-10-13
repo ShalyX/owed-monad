@@ -2,7 +2,7 @@
 
 **Public HTTPS:** https://owed-monad.tail5a7dd1.ts.net/
 
-**Current state (October 13, 2026):** Live public HTTPS release with private inference, individual money and to-do cards, correction and source recheck, strict payment review, and recorded successful receipt evidence. The full public-browser smoke passed. The release remains Monad Testnet only. See [Metropolis submission](METROPOLIS_SUBMISSION.md) and [narrated walkthrough](https://owed-monad.tail5a7dd1.ts.net/owed-metropolis-demo.mp4).
+**Current state (October 13, 2026):** Live public HTTPS release with private inference, individual money and to-do cards, correction and source recheck, strict payment review, and recorded successful receipt evidence. The full public-browser smoke passed. The release remains Monad Testnet only. See [Metropolis submission](METROPOLIS_SUBMISSION.md) and [working-product technical demo](https://owed-monad-submission-videos.vercel.app/technical.mp4).
 
 Owed is a **Monad Testnet pilot**, not a production payments service.
 Tailscale Funnel remains beta, and availability depends on our VPS.

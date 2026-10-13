@@ -1,8 +1,23 @@
+# Dependencies and local secrets
 node_modules/
-.env
-.env.local
+.env*
+!.env.example
+*.pem
+*.key
+
+# Local caches and generated output
 .DS_Store
 *.log
 .local/
+.vercel/
+.cache/
+coverage/
+dist/
+tmp/
+captures/
+renders/
+motion-output/
+
+# Generated or local-only test artifacts
 tests/voice-smoke.wav
 live-conversations-audit-results*.json

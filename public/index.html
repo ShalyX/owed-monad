@@ -20,7 +20,7 @@
     <section class="left-panel" id="capture">
       <div class="hero-top"><span class="eyebrow"><span class="eyebrow-dot"></span> THE LITTLE THINGS BETWEEN US</span><span class="hero-doodle" aria-hidden="true">✷ ♥</span></div>
       <h1>Good friends.<br><em>Clearer plans.</em><span class="hero-dot">✴</span></h1>
-      <p class="intro">The group chat made plans. Someone covered coffee. You promised a link. <strong>Owed keeps the little things from getting lost.</strong></p>
+      <p class="intro">Someone covered coffee. You promised a link. <strong>Owed keeps the little things from getting lost.</strong></p>
       <div class="friend-stage" id="friendStage" aria-label="Meet the illustrated Owed crew. Tap or focus a character for a little reminder."></div>
       <div class="stage-note"><span class="hand-heart" aria-hidden="true">♡</span><span>Same people. Less awkwardness.<br><strong>More good times.</strong></span><span class="stage-smile" aria-hidden="true">✳</span></div>
       <div class="capture">
@@ -33,7 +33,7 @@
         <div class="capture-body" id="pastePanel">
           <label for="conversation" class="field-label">WHAT DID THE CHAT SAY?</label>
           <textarea id="conversation" maxlength="12000" placeholder="“Hey, you still owe me $12 for the cab and $6 for lunch. Also, can you send me that venue address?”"></textarea>
-          <div id="groupIdentityPanel" class="group-identity hidden">
+          <div id="groupIdentityPanel" class="group-identity hidden" hidden>
             <label class="field-label" for="groupParticipant">GROUP CHAT · WHICH PARTICIPANT IS YOU?</label>
             <select id="groupParticipant" class="speaker-select" aria-describedby="groupIdentityHelp"><option value="">Choose your name in this chat</option></select>
             <p id="groupIdentityHelp">Only requests addressed to your selected participant can become payable. Other people's debts are not yours.</p>
@@ -62,9 +62,9 @@
 <section class="chat-file-import" aria-labelledby="chatImportHeading">
             <label class="field-label" id="chatImportHeading" for="chatTextFile">CHAT EXPORT (TEXT)</label>
             <input id="chatTextFile" type="file" accept=".txt,.text,text/plain">
-            <p class="import-chat-help">Import a WhatsApp-style .txt export without media, or a plain text chat. Preview the speakers and choose who you are before analysis. The original export stays in your browser.</p>
+            <p class="import-chat-help">Import a plain .txt note, or use a voice note below. Group chats are not supported in this hackathon build.</p>
             <p id="chatImportStatus" class="import-chat-status" role="status"></p>
-            <button class="secondary-btn" type="button" id="previewChatText">Preview chat and choose speaker ↗</button>
+            <button class="secondary-btn" type="button" id="previewChatText">Load text note ↗</button>
           </section>
           <label class="drop-area" for="audioFile"><span class="import-icon">↥</span><strong>Choose a voice note</strong><span id="fileLabel">MP3 · M4A · WAV · WEBM · up to 18 MB</span></label>
           <input id="audioFile" type="file" accept="audio/*,.m4a,.mp3,.wav,.webm,.ogg,.mp4" hidden>

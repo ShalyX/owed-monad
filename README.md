@@ -4,6 +4,12 @@
 
 A Monad Testnet MVP: paste messages, record voice, or import a voice note. Local Whisper transcribes speech; the current private VPS uses Qwen2.5 0.5B plus source-grounded safety checks to extract obligations (Hugging Face/Gemma is an optional alternate lane). The user reviews what to complete. For money owed, Owed requests a wallet-signed native Circle USDC transfer on Monad Testnet, then verifies the transaction receipt before marking it settled.
 
+## Hackathon scope
+
+**One-to-one only.** Paste one person's message, record a reminder, or import a voice note. Review money and to-dos independently; settle eligible USDC amounts on **Monad Testnet** with an explicit recipient and wallet confirmation. Multi-person group-chat analysis is deliberately unavailable in this release. Previously saved group records remain review-only and cannot initiate payments.
+
+**Safety boundary:** Owed treats quoted debts about other people as background, not debts you owe. A user-confirmed off-platform completion is not an onchain receipt. It is a testnet prototype, not a money transfer recommendation.
+
 ## Why it exists
 
 Real conversations create multiple loose ends: debts, favors, requests, plans. Owed keeps them together rather than forcing the user into a wallet before they know what they owe. This is a distinct new product inspired by the upstream VoiceDebt project (https://github.com/ShalyX/voicedebt); its UI and payment workflow were developed for Monad.

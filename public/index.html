@@ -59,6 +59,13 @@
             <option value="incoming" selected>Someone talking to me</option>
             <option value="recording">Me · my own reminder</option>
           </select>
+<section class="chat-file-import" aria-labelledby="chatImportHeading">
+            <label class="field-label" id="chatImportHeading" for="chatTextFile">CHAT EXPORT (TEXT)</label>
+            <input id="chatTextFile" type="file" accept=".txt,.text,text/plain">
+            <p class="import-chat-help">Import a WhatsApp-style .txt export without media, or a plain text chat. Preview the speakers and choose who you are before analysis. The original export stays in your browser.</p>
+            <p id="chatImportStatus" class="import-chat-status" role="status"></p>
+            <button class="secondary-btn" type="button" id="previewChatText">Preview chat and choose speaker ↗</button>
+          </section>
           <label class="drop-area" for="audioFile"><span class="import-icon">↥</span><strong>Choose a voice note</strong><span id="fileLabel">MP3 · M4A · WAV · WEBM · up to 18 MB</span></label>
           <input id="audioFile" type="file" accept="audio/*,.m4a,.mp3,.wav,.webm,.ogg,.mp4" hidden>
           <button class="action-btn" type="button" id="analyzeFile">Analyze voice note <span>↗</span></button>
@@ -102,6 +109,30 @@
   </nav>
   <footer class="page-footer"><span>made for the moments between us <span aria-hidden="true">♡</span></span><span>Powered by Monad Testnet · Whisper + Qwen2.5</span></footer>
 </div>
+<dialog id="itemReviewDialog" class="pay-dialog review-dialog" aria-labelledby="itemReviewTitle">
+  <form method="dialog"><button class="close-dialog" value="cancel" aria-label="Close review">×</button></form>
+  <div class="dialog-eyebrow">REVIEW / NO WALLET ACTION</div>
+  <h3 id="itemReviewTitle">Correct this item</h3>
+  <p class="dialog-note">Your correction changes only this browser's record. The original words remain visible and no payment can be verified by editing.</p>
+  <div class="review-source"><span class="field-label">ORIGINAL EVIDENCE · UNEDITED</span><blockquote id="reviewOriginalEvidence"></blockquote><small id="reviewSourceMeta"></small></div>
+  <label class="field-label" for="reviewTitleInput">WHAT SHOULD THIS ITEM SAY?</label>
+  <input type="text" id="reviewTitleInput" maxlength="140" autocomplete="off">
+  <div id="reviewMoneyFields">
+    <label class="field-label" for="reviewAmountInput">AMOUNT (USD / USDC REFERENCE)</label>
+    <input id="reviewAmountInput" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00">
+    <label class="field-label" for="reviewDirection">WHO OWES WHOM?</label>
+    <select id="reviewDirection"><option value="i_owe">I owe</option><option value="owed_to_me">Someone owes me</option><option value="unclear">Unclear / needs review</option></select>
+  </div>
+  <section id="reviewSpeakerBlock" class="review-speaker-block hidden"><span class="field-label">WRONG PARTICIPANT?</span><p>Speaker identity applies to the entire chat. Change it by reanalyzing the conversation, not by rewriting this quote.</p><button id="reviewChangeSpeaker" type="button" class="secondary-btn">Change participant and reanalyze ↗</button></section>
+  <label class="field-label" for="reviewStatus">WHAT'S THE CURRENT STATE?</label>
+  <select id="reviewStatus"></select>
+  <label class="field-label" for="reviewNoteInput">WHY ARE YOU CORRECTING THIS? (OPTIONAL)</label>
+  <textarea id="reviewNoteInput" maxlength="500" rows="2" placeholder="E.g. she confirmed the repayment later"></textarea>
+  <p id="reviewHistoryLabel" class="review-history-label"></p>
+  <p id="reviewNotice" class="notice hidden" role="status"></p>
+  <button class="action-btn" type="button" id="saveItemReview">Save correction · no transfer <span>✓</span></button>
+  <p class="dialog-bottom">EDITED MONEY ITEMS REMAIN REVIEW-ONLY · SOURCE QUOTES AND VERIFIED RECEIPTS ARE NEVER REWRITTEN</p>
+</dialog>
 <dialog id="payDialog" class="pay-dialog">
   <form method="dialog"><button aria-label="Close" class="close-dialog" value="cancel">×</button></form>
   <div class="dialog-eyebrow">SEND A PAYMENT / MONAD TESTNET</div>

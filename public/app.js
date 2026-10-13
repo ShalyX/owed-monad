@@ -11,6 +11,8 @@ import { missingObligations } from "./obligation-merge.js";
 import { legacyPaymentWarning } from "./financial-context.js";
 import { findSourceAddresses } from "./address-hints.js";
 import { parseGroupTurns } from "./group-context.js";
+import { normalizeChatExport, isChatTextFile } from "./chat-import.js";
+import { canCorrect, applyItemCorrection } from "./item-review.js";
 import { groupPaymentBlocked, GROUP_PAYMENT_MESSAGE } from "./group-payment-policy.js";
 import { atomizeOpenTasks } from "./atomic-tasks.js";
 
@@ -21,7 +23,7 @@ const verifiedReceipts = new Set();
 let restoredLegacyMoneyCount = 0;
 let collapsedDuplicateTaskCount = 0;
 let separatedLegacyTaskCount = 0;
-const state = { groups: load(), filter: "all", file: null, recorded: null, recorder: null, chunks: [], timer: null, startedAt: 0, processing: false, paymentId: null, receiptId: null, receiptEpoch: 0, recoveryId: null, wallet: "", lastVoicePerspective: "incoming" };
+const state = { groups: load(), filter: "all", file: null, recorded: null, recorder: null, chunks: [], timer: null, startedAt: 0, processing: false, paymentId: null, receiptId: null, receiptEpoch: 0, recoveryId: null, wallet: "", lastVoicePerspective: "incoming", importedChatSource: null, reviewId: null };
 $("friendStage").innerHTML = friendScene();
 $("analysisBuddy").innerHTML = avatarSvg("the-planner");
 const FRIEND_TIPS = [
@@ -132,7 +134,8 @@ function addGroup(group) {
     : "No explicit request found. If this was a voice note, please check the transcript before assuming nothing is owed."));
 }
 function updateGroupIdentity(){
-  const group=parseGroupTurns($("conversation").value);
+  const exportView=normalizeChatExport($("conversation").value);
+  const group=parseGroupTurns(exportView.recognized && !exportView.tooLong?exportView.normalized:$("conversation").value);
   const panel=$("groupIdentityPanel"),select=$("groupParticipant");
   panel.classList.toggle("hidden",!group);
   if(!group){select.replaceChildren(new Option("Choose your name in this chat",""));delete select.dataset.signature;return;}
@@ -145,18 +148,107 @@ function updateGroupIdentity(){
   select.dataset.signature=signature;
   if([...select.options].some(o=>o.value===previous))select.value=previous;
 }
+async function importChatFile(){
+ const file=$("chatTextFile").files?.[0];
+ if(!file)return showNotice("Choose a .txt chat export first.",true);
+ if(!isChatTextFile(file))return showNotice("Only plain text (.txt) chat exports are supported. No ZIP or media files.",true);
+ if(file.size>80*1024)return showNotice("This chat export is too large to preserve safely. Export a smaller segment under 80 KB.",true);
+ try{
+  const raw=await file.text();
+  const parsed=normalizeChatExport(raw);
+  if(parsed.tooLong)return showNotice("This export has "+parsed.normalizedLength+" characters after normalization. Select a shorter conversation; Owed will not silently discard messages.",true);
+  const normalized=parsed.recognized?parsed.normalized:raw.replace(/\r\n?/g,"\n").trim();
+  if(normalized.length<8||normalized.length>12000)return showNotice("The chat text must be 8–12,000 characters. No messages were imported.",true);
+  state.importedChatSource={original:raw,normalized,info:parsed.recognized?{
+    format:parsed.format,count:parsed.count,entries:parsed.entries,filename:file.name}:{
+    format:"Plain text",filename:file.name}};
+  setMode("paste");
+  $("conversation").value=normalized;
+  $("conversation").dispatchEvent(new Event("input",{bubbles:true}));
+  const summary=parsed.recognized?parsed.count+" messages from "+parsed.participants.length+
+    " speakers recognized. Choose your identity before analysis.":"Plain text loaded. Check the words and speaker names before analysis.";
+  $("chatImportStatus").textContent=summary;
+  showNotice(summary+" Original source text is retained in this browser; no analysis or payment has started.");
+  $("conversation").focus({preventScroll:true});
+ }catch(e){showNotice("Could not read this chat export: "+e.message,true)}
+}
+function sourceGroupFor(itemId){
+ return state.groups.find(g=>g.obligations?.some(x=>x.id===itemId));
+}
+function openItemReview(id){
+ const item=itemById(id),group=sourceGroupFor(id);
+ if(!canCorrect(item)||!group)return showNotice("A pending, failed or verified onchain transfer cannot be edited.",true);
+ state.reviewId=id;
+ $("itemReviewTitle").textContent="Review "+(item.kind==="money"?"money":"task");
+ $("reviewOriginalEvidence").textContent=item.sourceEvidence||item.evidence||"Source quote unavailable";
+ const origin=group.importInfo?.format ? " · "+group.importInfo.format:"";
+ $("reviewSourceMeta").textContent=(group.title||"Your conversation")+origin+" · "+(item.reviewHistory?.length||0)+" prior correction(s)";
+ $("reviewTitleInput").value=item.title||"";
+ $("reviewMoneyFields").classList.toggle("hidden",item.kind!=="money");
+ $("reviewAmountInput").value=item.amount==null?"":String(item.amount);
+ $("reviewDirection").value=["i_owe","owed_to_me","unclear"].includes(item.direction)?item.direction:"unclear";
+ const statuses=item.kind==="money"?[
+  ["needs_review","Needs review · not payable"],
+  ["user_handled","Already handled in chat · not onchain verified"],
+  ["dismissed","Not my obligation / dismiss"]
+ ]:[["open","Still open"],["done","Already completed"]];
+ $("reviewStatus").replaceChildren(...statuses.map(([value,label])=>new Option(label,value)));
+ if(item.kind==="task"&&item.status==="done")$("reviewStatus").value="done";
+ $("reviewNoteInput").value="";
+ $("reviewHistoryLabel").textContent=item.reviewHistory?.length?
+   "Your "+item.reviewHistory.length+" earlier correction(s) are saved. The original message remains unchanged.":"No corrections saved yet.";
+ $("reviewSpeakerBlock").classList.toggle("hidden",!group.groupContext);
+ hideNotice($("reviewNotice"));
+ $("itemReviewDialog").showModal();
+}
+function saveItemCorrection(){
+ const item=itemById(state.reviewId);
+ if(!item)return;
+ const result=applyItemCorrection(item,{
+  title:$("reviewTitleInput").value,
+  amount:$("reviewAmountInput").value,
+  direction:$("reviewDirection").value,
+  status:$("reviewStatus").value,
+  note:$("reviewNoteInput").value
+ });
+ if(!result.ok)return showNotice(result.error,true,$("reviewNotice"));
+ save();render();$("itemReviewDialog").close();
+ showNotice("Correction saved locally with its original evidence and edit history. "+
+   (item.kind==="money"?"This money item cannot initiate a USDC transfer.":"This task has its own completion state."));
+}
+function changeReviewSpeaker(){
+ const group=sourceGroupFor(state.reviewId);
+ if(!group?.groupContext)return;
+ $("itemReviewDialog").close();
+ setMode("paste");
+ $("conversation").value=group.originalChatExport&&group.originalChatExport.length<=12000?
+   group.originalChatExport:group.transcript;
+ $("conversation").dispatchEvent(new Event("input",{bubbles:true}));
+ $("groupParticipant").value="";
+ showNotice("Select the correct participant above and analyze again. A new perspective is saved separately; Owed will not relabel the old evidence automatically.");
+ $("groupParticipant").focus();
+}
 async function analyzeText(perspective = "incoming", transcriptOverride = null) {
   const text = typeof transcriptOverride === "string" ? transcriptOverride.trim() : $("conversation").value.trim();
   if (text.length < 8) return showNotice("Paste a conversation first (at least 8 characters).", true);
-  const group=parseGroupTurns(text);
+  const parsed=normalizeChatExport(text);
+  if(parsed.recognized&&parsed.tooLong)return showNotice("This export has "+parsed.normalizedLength+" characters after normalization. Choose a shorter excerpt (12,000 maximum); nothing was truncated.",true);
+  const input=parsed.recognized ? parsed.normalized : text;
+  const group=parseGroupTurns(input);
   if(group && typeof transcriptOverride !== "string" && !$("groupParticipant").value)
     return showNotice("Choose which group-chat participant is you before analysing. Owed won't guess who owes whom.",true);
   setProcessing(true, "Reading the conversation and extracting explicit obligations…");
   try {
-    const response = await fetch("/api/analyze-text", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, context: perspective, ...(group ? {participant:$("groupParticipant").value}: {}) }) });
+    const response = await fetch("/api/analyze-text", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text:input, context: perspective, ...(group ? {participant:$("groupParticipant").value}: {}) }) });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Analysis failed.");
-    if (result.obligations?.length) addGroup(result);
+    if (result.obligations?.length){
+      if(group && (parsed.recognized || (state.importedChatSource && state.importedChatSource.normalized===text))){
+        result.originalChatExport=parsed.recognized ? parsed.original : state.importedChatSource.original;
+        result.importInfo=parsed.recognized ? {format:parsed.format,count:parsed.count,entries:parsed.entries} : state.importedChatSource.info;
+      }
+      addGroup(result);
+    }
     else showNotice(result.analysisNote || "No clear obligation found. Review the words and speaker context before treating this as all clear.");
   } catch (e) { showNotice(e.message, true); }
   finally { setProcessing(false); }
@@ -209,6 +301,8 @@ function statusFor(x) {
   if (x.status === "submitting") return ["review","Wallet outcome unknown"];
   if (x.status === "review") return ["review","Transfer needs review"];
   if (x.status === "dismissed") return ["dismissed","Dismissed · not paid"];
+  if (x.status === "needs_review") return ["review","Manually corrected · review only"];
+  if (x.status === "user_handled") return ["review","Marked handled · not verified onchain"];
   if (x.status === "conversation_confirmed") return ["review","Acknowledged in chat · not verified onchain"];
   if (x.status === "cancelled") return ["review","Withdrawn in chat"];
   if (x.status === "done" && x.kind === "task") return ["completed","✓ Task done"];
@@ -221,7 +315,7 @@ function itemMarkup(x,i=0) {
   const reviewWarning = x.kind === "money" && ["open","failed"].includes(x.status)
     ? legacyPaymentWarning(x,x.group?.transcript || "") : null;
   const groupLocked = groupPaymentBlocked(x,x.group);
-  const payout = x.kind === "money" && x.direction === "i_owe" && x.amount !== null && !reviewWarning && !groupLocked;
+  const payout = x.kind === "money" && x.direction === "i_owe" && x.amount !== null && !reviewWarning && !groupLocked && !x.manualReviewOnly && ["open","failed"].includes(x.status);
   const sample = !!x.group.isSample;
   const [baseStatus,baseLabel] = statusFor(x);
   const [statusKey,statusLabel] = groupLocked && ["open","failed"].includes(x.status) ? ["review","Group payment paused"] : reviewWarning ? ["review","Review before paying"] : [baseStatus,baseLabel];
@@ -263,15 +357,18 @@ function itemMarkup(x,i=0) {
     ? "FROM THE TRANSCRIPT · CHECK THE WORDS" : "FROM YOUR CONVERSATION";
   const statusSummary = x.status === "dismissed" ? '<p class="outcome-note">No USDC payment was made for this item.</p>' : "";
   const contextMessage = groupLocked ? GROUP_PAYMENT_MESSAGE : reviewWarning || x.reviewReason || x.contextNote || "";
+  const correction=Array.isArray(x.reviewHistory)&&x.reviewHistory.length ? '<span class="status-text"> · Reviewed '+x.reviewHistory.length+'×</span>' : "";
+  const manualNote=x.manualReviewOnly? '<p class="financial-context-note">This card was corrected in your browser. It is not eligible for payment without fresh independent verification.</p>' : "";
+  const reviewControl=canCorrect(x)&&!sample ? '<button class="small-btn ghost" data-action="edit-review" data-id="'+actionId+'">Correct ↗</button>' : "";
   const contextMarkup = contextMessage ? '<p class="financial-context-note">'+escapeHTML(contextMessage)+'</p>' : "";
   return '<article class="obligation status-'+statusKey+'" data-item-id="'+actionId+'" tabindex="-1" style="--i:'+Math.min(i,15)+'">'+
     '<div class="card-top"><div class="item-icon" aria-hidden="true">'+momentIcon(x)+'</div><div class="card-titles"><div class="item-title">'+escapeHTML(x.title)+'</div>'+
     '<div class="card-meta">'+escapeHTML(meta)+' · '+source+'</div></div><div class="card-amount">'+price+
     '<span class="state-pill '+statusKey+'">'+escapeHTML(statusLabel)+'</span></div></div>'+
     '<div class="card-story"><div class="small-avatar">'+avatar+'</div><div class="story-copy"><span class="story-label">'+escapeHTML(evidenceLabel)+'</span>'+
-    '<p class="item-evidence">“'+escapeHTML(x.evidence)+'”</p>'+contextMarkup+'</div><span class="story-spark" aria-hidden="true">✧</span></div>'+
-    '<div class="card-bottom"><div class="item-category"><span class="kind-dot"></span>'+escapeHTML(category(x))+
-    (sample ? ' <span class="sample-tag">EXAMPLE</span>' : '')+'</div><div class="item-actions">'+controls+'</div></div>'+
+    '<p class="item-evidence">“'+escapeHTML(x.evidence)+'”</p>'+contextMarkup+manualNote+'</div><span class="story-spark" aria-hidden="true">✧</span></div>'+
+    '<div class="card-bottom"><div class="item-category"><span class="kind-dot"></span>'+escapeHTML(category(x))+correction+
+    (sample ? ' <span class="sample-tag">EXAMPLE</span>' : '')+'</div><div class="item-actions">'+reviewControl+controls+'</div></div>'+
     statusSummary+failedHash+'</article>';
 }
 function focusObligation(id) {
@@ -433,6 +530,7 @@ function payDialog(id) {
   const sourceGroup = state.groups.find((g) => g.obligations?.some((o) => o.id === id));
   if (sourceGroup?.isSample) return showNotice("Sample obligations cannot be paid. Analyze your own conversation first.", true);
   if (groupPaymentBlocked(x,sourceGroup)) return showNotice(GROUP_PAYMENT_MESSAGE,true);
+  if(x.manualReviewOnly)return showNotice("Manually corrected money is review-only; it cannot start a USDC transfer.",true);
   const contextWarning = legacyPaymentWarning(x,sourceGroup?.transcript || "");
   if (contextWarning) return showNotice(contextWarning,true);
   state.paymentId = id;
@@ -542,7 +640,7 @@ async function refreshReceipt(id) {
 function payableMoneyItems() {
   return allItems().filter((x) => x.kind === "money" && x.direction === "i_owe" &&
     x.amount != null && ["open", "failed"].includes(x.status) && !x.group?.isSample &&
-    !legacyPaymentWarning(x, x.group?.transcript || "") && !groupPaymentBlocked(x,x.group));
+    !legacyPaymentWarning(x, x.group?.transcript || "") && !groupPaymentBlocked(x,x.group) && !x.manualReviewOnly);
 }
 function updateWalletNextStep() {
   if (!isAddress(state.wallet)) return;
@@ -653,6 +751,7 @@ async function confirmPayment() {
   const note = $("paymentNotice");
   if (!x || !["open", "failed"].includes(x.status)) return;
   if (groupPaymentBlocked(x,state.groups.find(g=>g.obligations?.some(item=>item.id===x.id)))) return showNotice(GROUP_PAYMENT_MESSAGE,true,$("paymentNotice"));
+  if(x.manualReviewOnly)return showNotice("Manually reviewed money cannot initiate a payment.",true,$("paymentNotice"));
   const sourceGroup = state.groups.find(group => group.obligations?.some(item => item.id === x.id));
   const contextWarning = legacyPaymentWarning(x, sourceGroup?.transcript || "");
   if (contextWarning) return showNotice(contextWarning, true, note);
@@ -844,6 +943,7 @@ function wireEvents() {
     const item = itemById(btn.dataset.id);
     if (!item) return;
     if (btn.dataset.action === "pay") return payDialog(item.id);
+    if (btn.dataset.action === "edit-review") return openItemReview(item.id);
     if (btn.dataset.action === "check") return checkReceiptFor(item);
     if (btn.dataset.action === "recover") return openRecoveryDialog(item.id);
     if (btn.dataset.action === "receipt") return openReceipt(item.id);
@@ -877,6 +977,11 @@ function wireEvents() {
     }
   });
   $("confirmPayment").addEventListener("click", confirmPayment);
+  $("saveItemReview").addEventListener("click", saveItemCorrection);
+  $("reviewChangeSpeaker").addEventListener("click", changeReviewSpeaker);
+  $("itemReviewDialog").addEventListener("close",()=>{state.reviewId=null});
+  $("previewChatText").addEventListener("click",importChatFile);
+  $("chatTextFile").addEventListener("change",()=>{const file=$("chatTextFile").files?.[0];$("chatImportStatus").textContent=file?file.name+" selected. Preview before analysis.":"";});
   $("recoveryVerify").addEventListener("click", verifyRecoveredHash);
   $("recoveryNoSend").addEventListener("click", abandonUnknownSubmission);
   $("recoveryDialog").addEventListener("close", () => { state.recoveryId = null; });

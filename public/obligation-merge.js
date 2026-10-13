@@ -21,7 +21,7 @@ export function missingObligations(existing,updated) {
       (candidate.kind==="task"
         ? (taskIdentity(item)===taskIdentity(candidate) ||
           (item.status==="done" && taskIdentity(item).startsWith("compound:") && evidenceOverlap(item.evidence,candidate.evidence)))
-        : item.amount===candidate.amount));
+        : (item.manualReviewOnly || item.amount===candidate.amount)));
     if (!already) additions.push(candidate);
   }
   return additions;

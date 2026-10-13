@@ -410,3 +410,22 @@ h2 em{font-weight:500;color:#ee8476}
 .group-identity select { display: block; width: 100%; margin: 8px 0; }
 .group-identity p { font-size: .84rem; line-height: 1.45; margin: 6px 0 0; opacity: .78; }
 .group-identity.hidden { display: none; }
+
+/* Calm, evidence-first review panel and text chat import. */
+.chat-file-import{border:1px solid #c3d4c0;background:#f5f9ef;padding:17px;margin:0 0 22px}
+.chat-file-import input[type=file]{width:100%;font-size:12px;color:var(--ink);margin:4px 0 8px}
+.import-chat-help,.import-chat-status{font-size:12px;line-height:1.55;color:#526855;margin:8px 0}
+.import-chat-status:not(:empty){font-weight:700}
+.chat-file-import .secondary-btn{margin-top:12px}
+.review-dialog{max-height:90vh;overflow-y:auto}
+.review-dialog input[type=text],.review-dialog select{display:block;width:100%;padding:12px 13px;border:1px solid #b5c6af;background:#fffefa;margin:0 0 15px;font-size:13px;color:var(--ink)}
+.review-dialog .field-label{margin:14px 0 8px}
+.review-dialog .review-source{border:1px solid #cbd8c7;background:#f0f5e9;padding:14px;margin:16px 0}
+.review-source blockquote{font:italic 14px/1.5 Georgia,serif;white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0 12px}
+.review-source small,.review-history-label{color:#60735e;font-size:11px;line-height:1.6}
+.review-dialog textarea{min-height:75px;width:100%;margin:0 0 12px}
+.review-dialog .notice{margin:12px 0}
+.review-speaker-block{padding:12px 14px;background:#ebf1e7;border:1px solid #c3d2c0;margin:15px 0}
+.review-speaker-block p{font-size:12px;line-height:1.6;margin:0;color:#5a6c58}
+.review-speaker-block .secondary-btn{font-size:11px;padding:11px}
+@media(max-width:600px){.review-dialog{padding:22px 18px}.chat-file-import{padding:14px}}

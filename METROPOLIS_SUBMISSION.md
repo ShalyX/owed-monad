@@ -8,7 +8,7 @@
 **Source:** https://github.com/ShalyX/owed-monad  
 **Network:** Monad Testnet, chain ID `10143`  
 **Onchain proof:** https://testnet.monadvision.com/tx/0x1b2bf93586941a3e9126081e3ac97c950e52ece2b1a71cd4705ed96e370e371f  
-**Demo video:** [Use public video link once generated/hosted]
+**Demo video (narrated, 1m 45s):** https://owed-monad.tail5a7dd1.ts.net/owed-metropolis-demo.mp4
 
 ## Short description
 

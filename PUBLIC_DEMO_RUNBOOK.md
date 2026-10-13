@@ -2,10 +2,7 @@
 
 **Public HTTPS:** https://owed-monad.tail5a7dd1.ts.net/
 
-**Current state (October 9, 2026):** Public HTTPS, live private AI
-inference, separate Money and To-do cards, and payment review safety
-controls passed. A real wallet-approved USDC transfer and independently
-verified onchain receipt on this exact origin remain a final user-led test.
+**Current state (October 13, 2026):** Live public HTTPS release with private inference, individual money and to-do cards, correction and source recheck, strict payment review, and recorded successful receipt evidence. The full public-browser smoke passed. The release remains Monad Testnet only. See [Metropolis submission](METROPOLIS_SUBMISSION.md) and [narrated walkthrough](https://owed-monad.tail5a7dd1.ts.net/owed-metropolis-demo.mp4).
 
 Owed is a **Monad Testnet pilot**, not a production payments service.
 Tailscale Funnel remains beta, and availability depends on our VPS.
@@ -59,7 +56,7 @@ It does not sign a transaction.
 - This is Monad Testnet only; funds and gas must be testnet assets.
 - Qwen and Whisper can misinterpret or mistranscribe. Review source text.
 
-## Remaining real-wallet acceptance test
+## Repeatable real-wallet acceptance test
 
 A consenting wallet owner must:
 
@@ -73,9 +70,7 @@ A consenting wallet owner must:
 7. Check the Owed receipt modal and persisted state after reload.
 8. Test a rejected wallet signature and insufficient-balance case.
 
-Do not claim a particular funded transfer passed unless its authentic
-receipt has been checked. Automated smoke tests do not simulate settled
-funds or sign on behalf of a user.
+**Existing independently verified transaction:** [0.01 USDC on Monad Testnet](https://testnet.monadvision.com/tx/0x1b2bf93586941a3e9126081e3ac97c950e52ece2b1a71cd4705ed96e370e371f). This receipt was rechecked with the deployed read-only adapter on October 13. Do not confuse it with a newly signed transaction during the narrated demo. Automated smoke tests do not sign or move funds.
 
 ## Operational notes
 

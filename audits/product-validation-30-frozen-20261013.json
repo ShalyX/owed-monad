@@ -1,0 +1,438 @@
+{
+  "title": "Owed independent product validation",
+  "created": "2026-10-13",
+  "release": "b4f3d6f",
+  "design": "30 novel synthetic conversations; freeze all expected labels before first inference; no model tuning in this pass",
+  "cases": [
+    {
+      "id": "G01",
+      "mode": "group",
+      "participant": "Nina",
+      "text": "Luca: Nina, transfer me $7.25 for the venue badge.\nNina: Yep.\nAda: Nina, email the updated seating chart too.",
+      "expected": {
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 7.25,
+            "status": "open"
+          }
+        ],
+        "tasks": [
+          "seating chart"
+        ],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "G02",
+      "mode": "group",
+      "participant": "Nina",
+      "text": "Luca: Ada, you still owe me $23 for printing.\nAda: Got it.\nNina: I can send the map later.\nLuca: Nina, please forward the map.",
+      "expected": {
+        "money": [],
+        "tasks": [
+          "map"
+        ],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "G03",
+      "mode": "group",
+      "participant": "Nina",
+      "text": "Ada: Can everyone throw in $10 for snacks?\nLuca: Who exactly is handling the bill?\nNina: Not sure yet.",
+      "expected": {
+        "money": [],
+        "tasks": [],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "G04",
+      "mode": "group",
+      "participant": "Nina",
+      "text": "Luca: Nina, you owe me $21 for the taxi.\nNina: Let me check.\nLuca: Actually it was $16, not $21. Nina, send $16 instead.\nAda: Nina, upload the taxi receipt.",
+      "expected": {
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 21,
+            "status": "cancelled"
+          },
+          {
+            "direction": "i_owe",
+            "amount": 16,
+            "status": "open"
+          }
+        ],
+        "tasks": [
+          "receipt"
+        ],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "G05",
+      "mode": "group",
+      "participant": "Nina",
+      "text": "Luca: Nina, send me $8 for courier.\nNina: Paid just now.\nLuca: Received the $8, we're square.",
+      "expected": {
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 8,
+            "status": "conversation_confirmed"
+          }
+        ],
+        "tasks": [],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "G06",
+      "mode": "group",
+      "participant": "Alice",
+      "text": "Alicia: I can handle snacks.\nAlice: I'll handle chairs.\nLuca: Alicia, send me $17 for your ticket. Alice, share the parking code.",
+      "expected": {
+        "money": [],
+        "tasks": [
+          "parking code"
+        ],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "G07",
+      "mode": "group",
+      "participant": "Nina",
+      "text": "Luca: Nina, don't send me $44; the tickets were complimentary.\nNina: Oh nice.\nAda: Great.",
+      "expected": {
+        "money": [],
+        "tasks": [],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "G08",
+      "mode": "group",
+      "participant": "Nina",
+      "text": "Nina: Luca, I owe you $12 for the headshots.\nLuca: Yes, whenever works.\nAda: Photos look great.",
+      "expected": {
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 12,
+            "status": "open"
+          }
+        ],
+        "tasks": [],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "G09",
+      "mode": "group",
+      "participant": "Nina",
+      "text": "Luca: Can you send me what is left for the groceries?\nNina: Was that to me or Ada?\nAda: We should review the figures.",
+      "expected": {
+        "money": [],
+        "tasks": [],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "G10",
+      "mode": "group",
+      "participant": "Nina",
+      "text": "Luca: Nina, upload the signed release and call the driver.\nAda: Nina, also share the access code.\nNina: On it.",
+      "expected": {
+        "money": [],
+        "tasks": [
+          "release",
+          "driver",
+          "access code"
+        ],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "G11",
+      "mode": "group",
+      "participant": "Nina",
+      "text": "Ada: I paid $30 for four posters.\nLuca: That's the total, not Nina's portion.\nNina: We haven't agreed how to split it.",
+      "expected": {
+        "money": [],
+        "tasks": [],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "G12",
+      "mode": "group",
+      "participant": "Nina",
+      "text": "Luca: Nina, send me $15 for lunch.\nNina: Sure.\nLuca: Actually no, don't pay, lunch is my treat.",
+      "expected": {
+        "money": [],
+        "tasks": [],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "G13",
+      "mode": "group",
+      "participant": "Nina",
+      "text": "Luca: Nina, I still owe you $6 for the markers.\nNina: Thanks.\nAda: I can pick them up.",
+      "expected": {
+        "money": [
+          {
+            "direction": "owed_to_me",
+            "amount": 6,
+            "status": "open"
+          }
+        ],
+        "tasks": [],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "G14",
+      "mode": "group",
+      "participant": "Nina",
+      "text": "Luca: Nina, are you okay covering Thursday's shift?\nNina: Need to check.\nAda: We can swap if not.",
+      "expected": {
+        "money": [],
+        "tasks": [
+          "shift"
+        ],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "G15",
+      "mode": "group",
+      "participant": "Nina",
+      "text": "Ada: The minibus invoice says $90.\nLuca: We should discuss everyone's share first.\nNina: Agreed.",
+      "expected": {
+        "money": [],
+        "tasks": [],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "G16",
+      "mode": "group",
+      "participant": "Nina",
+      "text": "Luca: Nina, pay me $12 only if the landlord approves the room.\nNina: Still waiting for the answer.\nAda: Me too.",
+      "expected": {
+        "money": [],
+        "tasks": [],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "G17",
+      "mode": "group",
+      "participant": "Nina",
+      "text": "Luca: Remember when Ada joked, 'Nina, send me $60 or I'll be sad'?\nNina: LOL.\nAda: Still funny.",
+      "expected": {
+        "money": [],
+        "tasks": [],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "G18",
+      "mode": "group",
+      "participant": "Nina",
+      "text": "Luca: Nina, send the floor map. Ada, forward the invite.\nNina: Okay.\nAda: I'll handle invites.",
+      "expected": {
+        "money": [],
+        "tasks": [
+          "floor map"
+        ],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "G19",
+      "mode": "group",
+      "participant": "Nina",
+      "text": "Luca: Nina, send me $9 for fuel.\nNina: Okay.\nLuca: Nina, and $9 for the locker key too.",
+      "expected": {
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 9,
+            "status": "open"
+          },
+          {
+            "direction": "i_owe",
+            "amount": 9,
+            "status": "open"
+          }
+        ],
+        "tasks": [],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "G20",
+      "mode": "group",
+      "participant": "Nina",
+      "text": "Ada: Nina, can you confirm the caterer and send the allergy list?\nNina: I'll do both.\nLuca: Thanks!",
+      "expected": {
+        "money": [],
+        "tasks": [
+          "caterer",
+          "allergy list"
+        ],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "P01",
+      "mode": "single",
+      "perspective": "incoming",
+      "text": "Hey, you still owe me $6.80 for the groceries. Also send me the menu PDF when you can.",
+      "expected": {
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 6.8,
+            "status": "open"
+          }
+        ],
+        "tasks": [
+          "menu"
+        ],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "P02",
+      "mode": "single",
+      "perspective": "incoming",
+      "text": "I borrowed $9 from you last Tuesday; I'll return it after work.",
+      "expected": {
+        "money": [
+          {
+            "direction": "owed_to_me",
+            "amount": 9,
+            "status": "open"
+          }
+        ],
+        "tasks": [],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "P03",
+      "mode": "single",
+      "perspective": "incoming",
+      "text": "Could you lend me $20 to pay a deposit? I am asking for help, not reminding you of a debt.",
+      "expected": {
+        "money": [],
+        "tasks": [],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "P04",
+      "mode": "single",
+      "perspective": "incoming",
+      "text": "You owed me $14 last week, but the transfer came through yesterday. All settled.",
+      "expected": {
+        "money": [],
+        "tasks": [],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "P05",
+      "mode": "single",
+      "perspective": "incoming",
+      "text": "If the studio approves the booking, then send $36. They haven't approved yet.",
+      "expected": {
+        "money": [],
+        "tasks": [],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "P06",
+      "mode": "single",
+      "perspective": "incoming",
+      "text": "Please send the train station pin and tell me your arrival time.",
+      "expected": {
+        "money": [],
+        "tasks": [
+          "station",
+          "arrival"
+        ],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "P07",
+      "mode": "single",
+      "perspective": "incoming",
+      "text": "I overheard Jordan tell Maya 'you owe me $50'. I don't need anything from you.",
+      "expected": {
+        "money": [],
+        "tasks": [],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "P08",
+      "mode": "single",
+      "perspective": "incoming",
+      "text": "We split the $75 venue fee equally among five people. Send me your $15 share whenever you're free.",
+      "expected": {
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 15,
+            "status": "open"
+          }
+        ],
+        "tasks": [],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "P09",
+      "mode": "single",
+      "perspective": "incoming",
+      "text": "You still owe me $25 for the courier. Correction: make it $18, not $25. Send the $18 instead.",
+      "expected": {
+        "money": [
+          {
+            "direction": "i_owe",
+            "amount": 18,
+            "status": "open"
+          }
+        ],
+        "tasks": [],
+        "forbidUnlistedOpen": true
+      }
+    },
+    {
+      "id": "P10",
+      "mode": "single",
+      "perspective": "incoming",
+      "text": "I owe you $0.01 for coffee; thanks for covering it yesterday.",
+      "expected": {
+        "money": [
+          {
+            "direction": "owed_to_me",
+            "amount": 0.01,
+            "status": "open"
+          }
+        ],
+        "tasks": [],
+        "forbidUnlistedOpen": true
+      }
+    }
+  ]
+}

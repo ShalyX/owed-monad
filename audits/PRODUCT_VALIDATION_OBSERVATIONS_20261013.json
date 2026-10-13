@@ -1,0 +1,255 @@
+{
+  "release": "b4f3d6f",
+  "recorded": "2026-10-13",
+  "method": "Condensed faithful transcription of completed tool logs. These are not raw JSON model response bodies; see frozen expected inputs separately.",
+  "summary": {
+    "groupStrict": 13,
+    "groupTotal": 20,
+    "singleStrict": 5,
+    "singleTotal": 10,
+    "totalStrict": 18,
+    "total": 30,
+    "groupUnsafeOutstanding": 2,
+    "groupPaymentBypasses": 0,
+    "singleFalseOutstandingThirdParty": 1
+  },
+  "group": [
+    {
+      "id": "G01",
+      "strict": true,
+      "money": [
+        "i_owe 7.25 open"
+      ],
+      "tasks": [
+        "Email the updated seating chart too"
+      ]
+    },
+    {
+      "id": "G02",
+      "strict": true,
+      "money": [],
+      "tasks": [
+        "Forward the map"
+      ]
+    },
+    {
+      "id": "G03",
+      "strict": true,
+      "money": [],
+      "tasks": []
+    },
+    {
+      "id": "G04",
+      "strict": false,
+      "money": [
+        "i_owe 21 open",
+        "i_owe 16 open"
+      ],
+      "tasks": [
+        "Upload the taxi receipt"
+      ]
+    },
+    {
+      "id": "G05",
+      "strict": true,
+      "money": [
+        "i_owe 8 conversation_confirmed"
+      ],
+      "tasks": []
+    },
+    {
+      "id": "G06",
+      "strict": true,
+      "money": [],
+      "tasks": [
+        "Share the parking code"
+      ]
+    },
+    {
+      "id": "G07",
+      "strict": true,
+      "money": [],
+      "tasks": []
+    },
+    {
+      "id": "G08",
+      "strict": false,
+      "money": [],
+      "tasks": []
+    },
+    {
+      "id": "G09",
+      "strict": true,
+      "money": [],
+      "tasks": []
+    },
+    {
+      "id": "G10",
+      "strict": false,
+      "money": [],
+      "tasks": [
+        "Upload the signed release and call the driver",
+        "Share the access code"
+      ]
+    },
+    {
+      "id": "G11",
+      "strict": true,
+      "money": [],
+      "tasks": []
+    },
+    {
+      "id": "G12",
+      "strict": false,
+      "money": [
+        "i_owe 15 open"
+      ],
+      "tasks": []
+    },
+    {
+      "id": "G13",
+      "strict": true,
+      "money": [
+        "owed_to_me 6 open"
+      ],
+      "tasks": []
+    },
+    {
+      "id": "G14",
+      "strict": false,
+      "money": [],
+      "tasks": []
+    },
+    {
+      "id": "G15",
+      "strict": true,
+      "money": [],
+      "tasks": []
+    },
+    {
+      "id": "G16",
+      "strict": true,
+      "money": [],
+      "tasks": []
+    },
+    {
+      "id": "G17",
+      "strict": true,
+      "money": [],
+      "tasks": []
+    },
+    {
+      "id": "G18",
+      "strict": true,
+      "money": [],
+      "tasks": [
+        "Send the floor map"
+      ]
+    },
+    {
+      "id": "G19",
+      "strict": false,
+      "money": [
+        "i_owe 9 open"
+      ],
+      "tasks": []
+    },
+    {
+      "id": "G20",
+      "strict": false,
+      "money": [],
+      "tasks": []
+    }
+  ],
+  "single": [
+    {
+      "id": "P01",
+      "strict": true,
+      "money": [
+        "i_owe 6.8 open"
+      ],
+      "tasks": [
+        "Send menu details"
+      ]
+    },
+    {
+      "id": "P02",
+      "strict": false,
+      "money": [],
+      "tasks": []
+    },
+    {
+      "id": "P03",
+      "strict": false,
+      "money": [
+        "i_owe 20 open intent=voluntary_request"
+      ],
+      "tasks": []
+    },
+    {
+      "id": "P04",
+      "strict": false,
+      "money": [
+        "unclear null open"
+      ],
+      "tasks": []
+    },
+    {
+      "id": "P05",
+      "strict": true,
+      "money": [],
+      "tasks": []
+    },
+    {
+      "id": "P06",
+      "strict": false,
+      "money": [],
+      "tasks": []
+    },
+    {
+      "id": "P07",
+      "strict": false,
+      "money": [
+        "i_owe 50 open"
+      ],
+      "tasks": []
+    },
+    {
+      "id": "P08",
+      "strict": true,
+      "money": [
+        "i_owe 15 open"
+      ],
+      "tasks": []
+    },
+    {
+      "id": "P09",
+      "strict": true,
+      "money": [
+        "i_owe 18 open"
+      ],
+      "tasks": []
+    },
+    {
+      "id": "P10",
+      "strict": true,
+      "money": [
+        "owed_to_me 0.01 open"
+      ],
+      "tasks": []
+    }
+  ],
+  "browser": {
+    "liveThirdPartyOfferedPay": true,
+    "sourceDeniedInventedCorrection": true,
+    "sourceApprovedExactUnpaid": true,
+    "recipientAddressPreapproved": false,
+    "handledOutsideDistinguished": true,
+    "reopenedAsReview": true,
+    "groupLocksPreserved": true,
+    "groupCompoundTaskNotAtomic": true,
+    "groupStaleCorrection": true,
+    "mobileNoOverflow": true,
+    "realTransactionsSent": 0
+  }
+}

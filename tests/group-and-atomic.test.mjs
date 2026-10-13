@@ -107,9 +107,9 @@ test("the API blocks missing/invalid group identity without involving inference"
   };
   assert.equal((await send("")).status,422);
   assert.equal((await send("Invented")).status,422);
-  const good=await send("Alex"); assert.equal(good.status,200);
-  assert.deepEqual(good.data.obligations.filter(x=>x.kind==="money").map(x=>x.amount),[12]);
-  const observer=await send("__observer__");assert.equal(observer.status,200);assert.deepEqual(observer.data.obligations,[]);
+  const good=await send("Alex"); assert.equal(good.status,422);
+  assert.match(good.data.error,/not group conversations/i);
+  const observer=await send("__observer__");assert.equal(observer.status,422);
  }finally{await new Promise(ok=>app.close(ok));}
 });
 

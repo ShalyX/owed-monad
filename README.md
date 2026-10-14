@@ -53,17 +53,12 @@ The browser holds source conversations and state in `localStorage`, which is nei
 | `lib/` | Server-side analysis, receipt verification and safeguards |
 | `server.mjs` | HTTP server and analysis endpoints |
 | `tests/` | Regression and safety tests (`npm run check`) |
-| `scripts/` | Developer diagnostics, VPS deployment and browser checks |
-| `audits/` | Reproducible evaluation fixtures and results |
-| `docs/research/` | Historical evaluation and engineering reports |
-| `docs/operations/` | Advanced setup and historical implementation notes |
+| `scripts/` | Developer diagnostics, receipt verification and browser regression checks |
 
-### Release and hackathon documentation
+### Verification
 
-- [Public deployment and verification runbook](PUBLIC_DEMO_RUNBOOK.md)
-- [Hackathon product walkthrough](HACKATHON_FINAL.md)
-- [Metropolis submission notes](METROPOLIS_SUBMISSION.md)
-- [Paste-ready submission fields](METROPOLIS_PORTAL_FIELDS.md)
-- [Research archive](docs/research/README.md)
+Run `npm run check` to execute the maintained safety and regression tests. `npm run probe:monad` inspects testnet infrastructure; `npm run verify:payment -- 0xTXHASH 0xPAYER 0xRECIPIENT 0.01` independently verifies a specific USDC transaction. These checks do **not** initiate a wallet transfer.
+
+For a walkthrough, see the hosted [working-product technical video](https://owed-monad-submission-videos.vercel.app/technical.mp4). It demonstrates real analysis, review and task completion without claiming a fresh transfer.
 
 Owed builds on the voice-transcription exploration behind [VoiceDebt](https://github.com/ShalyX/voicedebt) but is a distinct product with its own Monad payment flow and design.

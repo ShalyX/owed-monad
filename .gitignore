@@ -21,3 +21,25 @@ motion-output/
 # Generated or local-only test artifacts
 tests/voice-smoke.wav
 live-conversations-audit-results*.json
+
+
+# Internal operational, evaluation and submission material stays off the public repository
+/audits/
+/docs/research/
+/docs/operations/
+/METROPOLIS_*.md
+/HACKATHON_FINAL.md
+/PUBLIC_DEMO_RUNBOOK.md
+/CONNECT-VPS.cmd
+/SETUP-HF.cmd
+/internal/
+/_private/
+/scripts/*vps*
+/scripts/connect-vps.ps1
+/scripts/enter-hf-token.ps1
+/scripts/set-hf-token.ps1
+/scripts/group-development-replay.mjs
+/scripts/group-event-holdout20.mjs
+/scripts/group-unseen40-audit.mjs
+/scripts/live-conversations-audit.mjs
+/scripts/realistic-live-audit.mjs
